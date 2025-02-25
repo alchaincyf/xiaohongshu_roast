@@ -81,14 +81,44 @@ async function generateRoast(blogContent: string): Promise<string> {
     
     console.log(`DeepSeek API响应状态: ${response.status}, 耗时: ${Date.now() - requestStartTime}ms`);
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("DeepSeek API错误响应:", errorText);
-      throw new Error(`DeepSeek API请求失败: ${response.status} - ${errorText}`);
+    // 获取原始响应文本
+    const responseText = await response.text();
+    
+    // 先检查响应是否为空
+    if (!responseText || responseText.trim() === '') {
+      console.error("DeepSeek API返回空响应");
+      throw new Error("API返回空响应");
     }
     
-    const responseData = await response.json();
-    console.log("DeepSeek API响应成功，消息类型:", typeof responseData.choices[0].message);
+    // 记录原始响应用于调试
+    console.log("原始响应 (前200字符):", responseText.substring(0, 200));
+    
+    // 尝试解析JSON
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error("解析响应JSON失败:", parseError, "原始响应:", responseText);
+      
+      // 检查是否包含错误信息
+      if (responseText.includes("error") || responseText.includes("An error occurred")) {
+        throw new Error(`API返回错误: ${responseText.substring(0, 200)}`);
+      }
+      
+      // 如果看起来像是直接返回的文本内容而不是JSON
+      if (responseText.includes("【") || responseText.includes("**")) {
+        console.log("API似乎直接返回了文本内容而非JSON");
+        return responseText;
+      }
+      
+      throw new Error("无法解析API响应");
+    }
+    
+    // 验证响应数据结构
+    if (!responseData.choices || !responseData.choices[0] || !responseData.choices[0].message) {
+      console.error("API响应缺少必要字段:", responseData);
+      throw new Error("API响应格式不正确");
+    }
     
     return responseData.choices[0].message.content;
     
@@ -150,22 +180,36 @@ export async function POST(request: NextRequest) {
       }, { status: 200 });
     }
     
-    // 生成吐槽
+    // 生成吐槽 - 添加重试机制
     console.log("开始调用AI生成吐槽...");
     let roast;
-    try {
-      const aiStartTime = Date.now();
-      roast = await generateRoast(html);
-      console.log(`AI生成吐槽完成: ${Date.now() - aiStartTime}ms, 内容长度: ${roast?.length || 0}`);
-    } catch (aiError) {
-      console.error("生成吐槽失败:", aiError);
-      return NextResponse.json({
-        success: false,
-        error: "AI生成吐槽失败",
-        errorDetail: JSON.stringify(aiError),
-        blogger: bloggerInfo,
-        roast: `很抱歉，AI在生成吐槽时遇到了一些问题。\n\n【关于这位博主】\n这位小红书博主看起来很有趣，但AI在处理时遇到了一些挑战。\n\n【吐槽】\nAI也有出错的时候，就像那些经常"翻车"的网红博主一样。不过，与其沮丧，不如再试一次！毕竟，在互联网的世界里，重新加载页面解决90%的问题。\n\n希望下次能为您提供一个精彩的吐槽！`
-      }, { status: 200 });
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      try {
+        attempts++;
+        const aiStartTime = Date.now();
+        roast = await generateRoast(html);
+        console.log(`AI生成吐槽完成: ${Date.now() - aiStartTime}ms, 内容长度: ${roast?.length || 0}`);
+        break; // 成功则跳出循环
+      } catch (aiError) {
+        console.error(`生成吐槽失败 (尝试 ${attempts}/${maxAttempts}):`, aiError);
+        
+        if (attempts >= maxAttempts) {
+          return NextResponse.json({
+            success: false,
+            error: "多次尝试生成吐槽均失败",
+            errorDetail: JSON.stringify(aiError),
+            blogger: bloggerInfo,
+            roast: `很抱歉，AI在生成吐槽时遇到了一些问题。\n\n【关于这位博主】\n这位小红书博主看起来很有趣，但AI在处理时遇到了一些挑战。\n\n【吐槽】\nAI也有出错的时候，就像那些经常"翻车"的网红博主一样。不过，与其沮丧，不如再试一次！毕竟，在互联网的世界里，重新加载页面解决90%的问题。\n\n希望下次能为您提供一个精彩的吐槽！`
+          }, { status: 200 });
+        }
+        
+        // 等待一小段时间后重试
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log(`重试生成吐槽 (${attempts}/${maxAttempts})...`);
+      }
     }
     
     // 返回结果

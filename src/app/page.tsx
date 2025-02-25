@@ -72,6 +72,7 @@ function Home() {
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentYear, setCurrentYear] = useState<number>(2025);
   const [mounted, setMounted] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
   
   const resultCardRef = useRef<HTMLDivElement>(null);
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -286,33 +287,41 @@ function Home() {
         console.error("错误详情:", responseData.errorDetail);
         setError(responseData.error || "生成吐槽失败，请稍后再试");
         
-        // 即使有错误也显示备用吐槽内容
+        // 即使有错误也显示备用吐槽内容，但不保存到Firebase
         if (responseData.roast) {
           setResult(responseData.roast);
         }
         if (responseData.blogger) {
           setBloggerInfo(responseData.blogger);
         }
-        return;
+        return; // 提前返回，不保存错误结果
       }
       
       // 成功情况下更新状态
       setResult(responseData.roast);
       setBloggerInfo(responseData.blogger);
       
-      // 保存到 Firebase 并获取分享ID
-      try {
-        const saveStartTime = Date.now();
-        console.log("开始保存吐槽到Firebase...");
-        const newShareId = await saveRoast({
-          blogger: responseData.blogger,
-          roast: responseData.roast,
-          url: url
-        });
-        console.log(`保存到Firebase完成, 耗时: ${Date.now() - saveStartTime}ms, ShareID: ${newShareId}`);
-        setShareId(newShareId);
-      } catch (saveError) {
-        console.error("保存吐槽记录失败:", saveError);
+      // 检查是否包含错误信息，如果包含则不保存
+      const containsErrorMessage = responseData.roast.includes("很抱歉，AI在生成吐槽时遇到了一些问题") || 
+                                 responseData.roast.includes("处理请求时发生错误");
+      
+      // 只有生成成功且没有错误信息时才保存到Firebase
+      if (!containsErrorMessage) {
+        try {
+          const saveStartTime = Date.now();
+          console.log("开始保存吐槽到Firebase...");
+          const newShareId = await saveRoast({
+            blogger: responseData.blogger,
+            roast: responseData.roast,
+            url: url
+          });
+          console.log(`保存到Firebase完成, 耗时: ${Date.now() - saveStartTime}ms, ShareID: ${newShareId}`);
+          setShareId(newShareId);
+        } catch (saveError) {
+          console.error("保存吐槽记录失败:", saveError);
+        }
+      } else {
+        console.log("检测到错误信息，不保存到Firebase");
       }
       
     } catch (error) {
@@ -967,6 +976,17 @@ function Home() {
                       </svg>
                       保存为图片
                     </button>
+                    {bloggerInfo?.bloggerId && (
+                      <button
+                        className="text-sm px-3 py-1.5 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 transition-colors flex items-center"
+                        onClick={() => setShowHistoryModal(true)}
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        历史吐槽
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
