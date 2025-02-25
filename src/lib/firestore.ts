@@ -36,7 +36,10 @@ export async function saveRoast(data: Omit<RoastRecord, 'id' | 'createdAt' | 'sh
 }
 
 // 获取最近的吐槽记录
-export async function getRecentRoasts(lastDoc = null, itemsPerPage = 10): Promise<{roasts: RoastRecord[], lastDoc: any}> {
+export async function getRecentRoasts(
+  lastDoc: firebase.firestore.QueryDocumentSnapshot | null = null, 
+  itemsPerPage = 10
+): Promise<{roasts: RoastRecord[], lastDoc: firebase.firestore.QueryDocumentSnapshot | null}> {
   try {
     let roastsQuery;
     

@@ -245,7 +245,7 @@ export async function POST(request: NextRequest) {
       
     } catch (error) {
       console.error('处理请求时发生错误:', error);
-      const errorMessage = error instanceof Error ? error.message : '处理请求时发生错误';
+      const errorMsg = error instanceof Error ? error.message : '处理请求时发生错误';
       
       // 即使出错，也返回一个可用的结果，而不是错误
       const defaultRoast = `很抱歉，AI在生成吐槽时遇到了一些问题。
@@ -271,7 +271,7 @@ export async function POST(request: NextRequest) {
     
   } catch (error: unknown) {
     console.error('API error:', error);
-    const errorMessage = error instanceof Error ? error.message : '处理请求时发生错误';
+    const errorMsg = error instanceof Error ? error.message : '处理请求时发生错误';
     
     // 始终返回一个有效的响应，即使是最外层的错误处理
     return NextResponse.json({
