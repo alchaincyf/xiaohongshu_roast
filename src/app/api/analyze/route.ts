@@ -183,6 +183,11 @@ AI也有出错的时候，就像那些经常"翻车"的网红博主一样。不�
   }
 }
 
+// 增加超时配置
+export const maxDuration = 60; // 60秒超时，Vercel 默认是10秒
+
+export const runtime = 'edge';
+
 export async function POST(request: NextRequest) {
   try {
     // 检查环境变量是否正确加载
@@ -391,4 +396,16 @@ function extractBloggerInfo(html: string): { nickname: string; avatar: string } 
   }
   
   return result;
+}
+
+// 确保支持 OPTIONS 请求以解决 CORS 问题
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
 } 

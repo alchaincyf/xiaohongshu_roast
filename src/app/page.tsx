@@ -257,93 +257,80 @@ function Home() {
     );
   }, []);
 
-  // 处理表单提交
-  const handleSubmit = async (e: React.FormEvent) => {
+  // 修改 API 调用函数
+  const analyzeProfile = async (url: string) => {
+    try {
+      setLoading(true);
+      setLoadingMessage(getRandomLoadingMessage());
+      setError("");
+      startLoadingAnimation();
+      
+      // 增加超时设置
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 50000); // 50秒超时
+      
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP错误: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      stopLoadingAnimation();
+      
+      if (result.success) {
+        setResult(result.result);
+        setBloggerInfo(result.blogger);
+        setShareId(result.shareId || null);
+        // 滚动到结果
+        setTimeout(() => {
+          const resultElement = document.getElementById('result-section');
+          if (resultElement) {
+            resultElement.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 500);
+      } else {
+        setError(result.error || "生成吐槽失败，请稍后重试");
+      }
+    } catch (error) {
+      console.error("分析失败:", error);
+      stopLoadingAnimation();
+      
+      // 处理超时错误
+      if (error.name === 'AbortError') {
+        setError("请求超时，AI可能需要更长时间处理。请稍后重试。");
+      } else {
+        setError((error as Error).message || "发生未知错误，请稍后重试");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 添加表单提交处理函数
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
+    
+    // 验证输入
+    if (!url.includes("xiaohongshu.com")) {
+      setError("请输入有效的小红书链接");
+      return;
+    }
+    
+    // 重置状态
     setResult("");
     setBloggerInfo(null);
     setShareId(null);
     
-    // 启动加载动画
-    startLoadingAnimation();
-
-    try {
-      if (!url.includes("xiaohongshu.com")) {
-        throw new Error("请输入有效的小红书链接");
-      }
-
-      const response = await fetch("/api/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "分析失败，请稍后再试");
-      }
-
-      const data = await response.json();
-      
-      // 如果API返回了isError标记，显示更友好的错误提示而不是立即中断
-      if (data.isError) {
-        console.warn("API返回了错误标记:", data);
-        // 但仍然显示返回的内容
-        let processedRoast = data.roast || "";
-        processedRoast = processedRoast.replace(/\n{3,}/g, '\n\n');
-        setResult(processedRoast);
-        if (data.blogger) {
-          setBloggerInfo(data.blogger);
-        }
-        // 轻量级错误提示
-        const notification = document.createElement('div');
-        notification.className = 'fixed bottom-4 right-4 bg-amber-700 text-white px-4 py-2 rounded-lg shadow-lg opacity-0 transition-opacity';
-        notification.textContent = '生成过程中遇到了一些小问题，但我们仍然提供了结果';
-        document.body.appendChild(notification);
-        setTimeout(() => notification.classList.add('opacity-100'), 10);
-        setTimeout(() => {
-          notification.classList.remove('opacity-100');
-          setTimeout(() => document.body.removeChild(notification), 300);
-        }, 4000);
-      } else {
-        // 正常处理结果
-        let processedRoast = data.roast || "";
-        processedRoast = processedRoast.replace(/\n{3,}/g, '\n\n');
-        setResult(processedRoast);
-        if (data.blogger) {
-          setBloggerInfo(data.blogger);
-        }
-        
-        // 保存到 Firebase 并获取分享ID
-        try {
-          const newShareId = await saveRoast({
-            blogger: data.blogger,
-            roast: processedRoast,
-            url: url
-          });
-          setShareId(newShareId);
-          
-          // 更新URL，但不刷新页面
-          window.history.pushState({}, '', `?share=${newShareId}`);
-          
-          // 刷新最近吐槽列表
-          loadRecentRoasts();
-        } catch (saveError) {
-          console.error("保存吐槽记录失败:", saveError);
-        }
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "发生未知错误");
-      console.error("Error details:", err);
-    } finally {
-      // 停止加载动画
-      stopLoadingAnimation();
-      setLoading(false);
-    }
+    // 调用分析函数
+    analyzeProfile(url);
   };
 
   // 优化saveAsImage函数
