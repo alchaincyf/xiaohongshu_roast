@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/analyze": {
+    "app/api/analyze/**": {
       "maxDuration": 60
     }
   },
