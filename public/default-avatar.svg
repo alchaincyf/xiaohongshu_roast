@@ -1,0 +1,7 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="100" cy="100" r="100" fill="#FFCDD2" />
+  
+  <!-- User Silhouette -->
+  <path d="M100,40 C78,40 60,58 60,80 C60,97 72,110 86,114 C66,120 50,140 50,160 L150,160 C150,140 134,120 114,114 C128,110 140,97 140,80 C140,58 122,40 100,40 Z" fill="#F44336"/>
+</svg> 

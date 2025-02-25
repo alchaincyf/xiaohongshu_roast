@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 小红书博主吐槽助手
 
-## Getting Started
+这是一个基于Next.js开发的网站，可以对小红书博主进行幽默吐槽。用户只需输入小红书博主的链接，系统会自动爬取博主信息，并通过DeepSeek-R1人工智能生成幽默的吐槽内容。
 
-First, run the development server:
+## 功能特点
 
+- 输入小红书博主链接，获取博主信息
+- 使用r.jina.ai爬取小红书内容
+- 通过DeepSeek-R1模型生成幽默吐槽
+- 响应式设计，支持各种设备
+
+## 技术栈
+
+- Next.js 14 (App Router)
+- TypeScript
+- Tailwind CSS
+- r.jina.ai 爬虫服务
+- DeepSeek-R1 AI模型
+
+## 安装与使用
+
+1. 克隆仓库
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd xiaohongshu
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. 安装依赖
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. 设置环境变量
+复制`.env.local.example`为`.env.local`，并填入你的DeepSeek API密钥：
+```
+DEEPSEEK_API_KEY=your_api_key_here
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. 运行开发服务器
+```bash
+npm run dev
+```
 
-## Learn More
+访问 [http://localhost:3000](http://localhost:3000) 查看应用。
 
-To learn more about Next.js, take a look at the following resources:
+## 部署
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+该项目可以轻松部署到Vercel等平台：
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyour-username%2Fxiaohongshu)
 
-## Deploy on Vercel
+## 使用说明
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. 访问网站首页
+2. 在输入框中粘贴小红书博主的主页链接（例如：https://www.xiaohongshu.com/user/profile/...）
+3. 点击"生成吐槽"按钮
+4. 等待AI分析完成，查看幽默吐槽结果
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 注意事项
+
+- 本工具仅供娱乐，请文明使用
+- 需要DeepSeek API密钥才能使用AI吐槽功能
+- 爬虫功能依赖r.jina.ai服务
+
+## 许可证
+
+MIT
