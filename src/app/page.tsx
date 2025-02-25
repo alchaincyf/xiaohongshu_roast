@@ -532,7 +532,7 @@ function Home() {
               <span className="text-red-500">小红书</span>博主吐槽助手
             </h1>
             <a 
-              href="https://github.com" 
+              href="https://github.com/alchaincyf/xiaohongshu_roast" 
               className="text-gray-500 hover:text-gray-700 transition-colors"
               target="_blank"
               rel="noopener noreferrer"
