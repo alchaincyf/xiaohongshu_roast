@@ -54,7 +54,13 @@ async function generateRoast(blogContent: string): Promise<string> {
       messages: [
         {
           role: 'user',
-          content: `用300字roast这名小红书博主:\n\n${blogContent}`
+          content: `roast这位小红书博主（直接roast，不要说任何多余的话，角度需要多样和犀利）:
+
+使用以下 Markdown 格式增强表现力:
+1. 【标题】使用【】括起重要段落标题
+2. **加粗** 用于强调重要观点
+
+以下是博主内容：\n\n${blogContent}`
         }
       ],
       temperature: 0.7,

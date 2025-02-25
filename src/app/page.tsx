@@ -359,120 +359,333 @@ function Home() {
     analyzeProfile(url);
   };
 
-  // 优化saveAsImage函数
+  // 修正图片保存功能，解决布局问题
   const saveAsImage = async () => {
     if (!resultCardRef.current) return;
     
     try {
       // 显示加载提示
       const notification = document.createElement('div');
-      notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg transition-opacity opacity-0';
+      notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-opacity opacity-0';
       notification.textContent = '正在生成图片，请稍候...';
       document.body.appendChild(notification);
       setTimeout(() => notification.classList.add('opacity-100'), 10);
       
-      // 临时隐藏不需要在图片中显示的元素
-      const actionsElement = resultCardRef.current.querySelector('.result-actions');
-      const originalDisplay = actionsElement ? actionsElement.style.display : 'flex';
-      if (actionsElement) {
-        actionsElement.style.display = 'none';
-      }
+      // 创建一个新的文档片段
+      const tempContainer = document.createElement('div');
+      tempContainer.className = 'fixed top-0 left-0 transform translate-x-[-9999px]';
+      document.body.appendChild(tempContainer);
       
-      // 调整时间图标和文字的对齐
-      const timeElement = resultCardRef.current.querySelector('.time-display');
-      if (timeElement) {
-        timeElement.classList.add('items-center');
-      }
+      // 添加更精确的样式控制
+      const style = document.createElement('style');
+      style.textContent = `
+        .image-card {
+          width: ${resultCardRef.current.offsetWidth}px;
+          background: white;
+          border-radius: 16px;
+          padding: 24px;
+          font-family: ui-sans-serif, system-ui, sans-serif;
+          color: #1f2937;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .image-card .header {
+          display: flex;
+          align-items: flex-start;
+          margin-bottom: 20px;
+        }
+        .image-card .avatar {
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          overflow: hidden;
+          margin-right: 12px;
+          flex-shrink: 0;
+          border: 1px solid #FCE7F3;
+        }
+        .image-card .avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .image-card .blogger-info {
+          flex: 1;
+        }
+        .image-card .blogger-name {
+          font-size: 18px;
+          font-weight: 700;
+          color: #111827;
+          margin-bottom: 4px;
+          line-height: 1.2;
+        }
+        .image-card .blogger-status {
+          font-size: 14px;
+          color: #EC4899;
+          font-weight: 500;
+        }
+        .image-card .content {
+          padding: 8px 0;
+          line-height: 1.6;
+          white-space: pre-wrap;
+        }
+        .image-card .title {
+          font-size: 18px;
+          font-weight: 700;
+          color: #E11D48;
+          margin-top: 16px;
+          margin-bottom: 8px;
+        }
+        .image-card p {
+          margin-bottom: 12px;
+        }
+        .image-card .footer {
+          margin-top: 24px;
+          padding-top: 16px;
+          border-top: 1px solid #F3F4F6;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .image-card .time {
+          font-size: 14px;
+          color: #6B7280;
+          display: flex;
+          align-items: center;
+        }
+        .image-card .time svg {
+          width: 16px;
+          height: 16px;
+          margin-right: 4px;
+        }
+        .image-card .creator-info {
+          display: flex;
+          align-items: center;
+        }
+        .image-card .creator-label {
+          font-size: 12px;
+          color: #9CA3AF;
+          margin-right: 8px;
+        }
+        .image-card .creator-avatar {
+          width: 20px;
+          height: 20px;
+          border-radius: 9999px;
+          margin-right: 4px;
+        }
+        .image-card .creator-name {
+          font-size: 12px;
+          color: #4B5563;
+          font-weight: 500;
+        }
+      `;
+      tempContainer.appendChild(style);
       
-      // 给图片加载一些时间
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 构建自定义标记结构，不使用原始DOM的克隆
+      const imageCard = document.createElement('div');
+      imageCard.className = 'image-card';
       
-      // 使用更好的html2canvas配置
-      const canvas = await html2canvas(resultCardRef.current, {
-        scale: 2, // 高分辨率
-        backgroundColor: "#ffffff",
-        logging: false,
-        useCORS: true, // 启用CORS以支持跨域图片
-        allowTaint: true, // 允许跨域图片
-        imageTimeout: 15000, // 增加图片加载超时时间
-        width: resultCardRef.current.offsetWidth,
-        height: resultCardRef.current.offsetHeight,
-        onclone: (clonedDoc) => {
-          // 在克隆的文档中应用额外的样式
-          const clonedCard = clonedDoc.querySelector('[data-result-card]');
-          if (clonedCard) {
-            clonedCard.style.width = `${resultCardRef.current.offsetWidth}px`;
-            clonedCard.style.padding = '20px';
-            clonedCard.style.boxSizing = 'border-box';
-          }
+      // 博主信息
+      const header = document.createElement('div');
+      header.className = 'header';
+      
+      const avatarContainer = document.createElement('div');
+      avatarContainer.className = 'avatar';
+      const avatarImg = document.createElement('img');
+      avatarImg.src = bloggerInfo?.avatar || '/default-avatar.svg';
+      avatarImg.alt = bloggerInfo?.nickname || '未知博主';
+      avatarImg.crossOrigin = 'anonymous';
+      avatarImg.onerror = () => { avatarImg.src = '/default-avatar.svg'; };
+      avatarContainer.appendChild(avatarImg);
+      
+      const bloggerInfoDiv = document.createElement('div');
+      bloggerInfoDiv.className = 'blogger-info';
+      
+      const bloggerName = document.createElement('h3');
+      bloggerName.className = 'blogger-name';
+      bloggerName.textContent = bloggerInfo?.nickname || '未知博主';
+      
+      const status = document.createElement('p');
+      status.className = 'blogger-status';
+      status.textContent = '被DeepSeek花式吐槽中...';
+      
+      bloggerInfoDiv.appendChild(bloggerName);
+      bloggerInfoDiv.appendChild(status);
+      
+      header.appendChild(avatarContainer);
+      header.appendChild(bloggerInfoDiv);
+      imageCard.appendChild(header);
+      
+      // 内容
+      const content = document.createElement('div');
+      content.className = 'content';
+      
+      result.split('\n').forEach(line => {
+        if (line.trim()) {
+          // 处理 markdown 格式 - 与页面展示保持一致
+          const formattedLine = line
+            // 标题和重点强调
+            .replace(/【(.+?)】/g, '<span style="font-weight:bold;color:#e11d48;">【$1】</span>')
+            // 加粗文字转为橙色强调
+            .replace(/\*\*(.+?)\*\*/g, '<span style="font-weight:600;color:#d97706;">$1</span>')
+            // 下划线文字
+            .replace(/\_\_(.+?)\_\_/g, '<span style="text-decoration:underline;text-decoration-color:#ec4899;text-decoration-thickness:2px;">$1</span>')
+            // 斜体转为紫色强调
+            .replace(/\*(.+?)\*/g, '<span style="font-style:italic;color:#9333ea;">$1</span>')
+            // 引用转为灰底黑字
+            .replace(/\>(.+)/g, '<span style="background-color:#f3f4f6;color:#1f2937;padding:4px 8px;border-radius:4px;">$1</span>');
           
-          // 确保头像正确显示
-          const avatarImg = clonedDoc.querySelector('.avatar-image');
-          if (avatarImg) {
-            avatarImg.setAttribute('crossorigin', 'anonymous');
+          if (line.trim().startsWith('【') && line.trim().includes('】')) {
+            const heading = document.createElement('h4');
+            heading.className = 'title';
+            heading.innerHTML = formattedLine;
+            content.appendChild(heading);
+          } else {
+            const p = document.createElement('p');
+            p.innerHTML = formattedLine;
+            content.appendChild(p);
           }
-          
-          return new Promise(resolve => setTimeout(resolve, 300));
+        } else {
+          const spacer = document.createElement('div');
+          spacer.style.height = '8px';
+          content.appendChild(spacer);
         }
       });
       
-      // 恢复原始显示状态
-      if (actionsElement) {
-        actionsElement.style.display = originalDisplay;
-      }
-      if (timeElement) {
-        timeElement.classList.remove('items-center');
-      }
+      imageCard.appendChild(content);
+      
+      // 底部信息 - 只添加一个创作者信息
+      const footer = document.createElement('div');
+      footer.className = 'footer';
+      
+      const timeDiv = document.createElement('div');
+      timeDiv.className = 'time';
+      timeDiv.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+        </svg>
+        <span>生成于 ${currentTime}</span>
+      `;
+      
+      const creatorDiv = document.createElement('div');
+      creatorDiv.className = 'creator-info';
+      creatorDiv.innerHTML = `
+        <span class="creator-label">Powered by</span>
+        <img src="/花叔.webp" alt="花叔" class="creator-avatar" />
+        <span class="creator-name">花叔（只工作不上班版</span>
+      `;
+      
+      footer.appendChild(timeDiv);
+      footer.appendChild(creatorDiv);
+      imageCard.appendChild(footer);
+      
+      tempContainer.appendChild(imageCard);
+      
+      // 找到所有图片并等待加载完成
+      const images = imageCard.querySelectorAll('img');
+      await Promise.all(Array.from(images).map(img => {
+        // 对于头像图片特殊处理
+        if (img.src.includes('sns-avatar') || img.src.includes('xhscdn.com')) {
+          // 设置跨域属性
+          img.crossOrigin = 'anonymous';
+          
+          // 创建一个备用的头像URL，以防加载失败
+          const originalSrc = img.src;
+          
+          return new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = () => {
+              console.warn('头像加载失败，使用默认头像', originalSrc);
+              img.src = '/default-avatar.svg';
+              resolve();
+            };
+            // 触发加载
+            img.src = originalSrc;
+          });
+        }
+        
+        // 非头像图片正常处理
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+      }));
+      
+      // 使用html2canvas生成图片
+      const canvas = await html2canvas(imageCard, {
+        scale: 2, // 提高清晰度
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      });
       
       // 移除加载提示
       notification.classList.remove('opacity-100');
       setTimeout(() => document.body.removeChild(notification), 300);
       
-      // 保存图片
-      try {
-        const image = canvas.toDataURL("image/png");
-        const link = document.createElement("a");
-        link.href = image;
-        link.download = `小红书吐槽-${bloggerInfo?.nickname || '未知博主'}-${new Date().getTime()}.png`;
-        link.click();
-      } catch (downloadErr) {
-        console.error("保存链接失败，尝试备用方法:", downloadErr);
-        
-        // 备用方式：在新窗口打开
-        canvas.toBlob(blob => {
-          if (blob) {
-            const blobUrl = URL.createObjectURL(blob);
-            window.open(blobUrl, '_blank');
-            // 清理URL对象
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      // 检测是否是移动设备
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // 移动设备：显示图片弹窗，用户可以长按保存
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4';
+        overlay.onclick = (e) => {
+          if (e.target === overlay) {
+            document.body.removeChild(overlay);
           }
-        });
+        };
+        
+        const imageContainer = document.createElement('div');
+        imageContainer.className = 'max-w-full max-h-full relative';
+        
+        const img = document.createElement('img');
+        img.src = canvas.toDataURL('image/png');
+        img.className = 'max-w-full max-h-[80vh] rounded-lg shadow-lg';
+        
+        const infoText = document.createElement('p');
+        infoText.className = 'text-white text-center text-sm mt-4';
+        infoText.textContent = '长按图片保存到相册';
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2';
+        closeBtn.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        `;
+        closeBtn.onclick = () => document.body.removeChild(overlay);
+        
+        imageContainer.appendChild(img);
+        imageContainer.appendChild(closeBtn);
+        overlay.appendChild(imageContainer);
+        overlay.appendChild(infoText);
+        document.body.appendChild(overlay);
+      } else {
+        // 桌面设备：下载图片
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = `${bloggerInfo?.nickname || '未知博主'}_吐槽.png`;
+        a.click();
+        
+        // 显示成功提示
+        const successNotification = document.createElement('div');
+        successNotification.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg opacity-0 transition-opacity';
+        successNotification.textContent = '图片已保存';
+        document.body.appendChild(successNotification);
+        setTimeout(() => successNotification.classList.add('opacity-100'), 10);
+        setTimeout(() => {
+          successNotification.classList.remove('opacity-100');
+          setTimeout(() => document.body.removeChild(successNotification), 300);
+        }, 2000);
       }
       
-      // 成功通知
-      const successNotification = document.createElement('div');
-      successNotification.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg opacity-0 transition-opacity';
-      successNotification.textContent = '图片已生成';
-      document.body.appendChild(successNotification);
-      setTimeout(() => successNotification.classList.add('opacity-100'), 10);
-      setTimeout(() => {
-        successNotification.classList.remove('opacity-100');
-        setTimeout(() => document.body.removeChild(successNotification), 300);
-      }, 2000);
+      // 清理
+      document.body.removeChild(tempContainer);
       
-    } catch (err) {
-      console.error("保存图片时出错:", err);
-      
-      // 显示错误通知
-      const errorNotification = document.createElement('div');
-      errorNotification.className = 'fixed bottom-4 right-4 bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg opacity-0 transition-opacity';
-      errorNotification.textContent = '生成图片时出错，请重试';
-      document.body.appendChild(errorNotification);
-      setTimeout(() => errorNotification.classList.add('opacity-100'), 10);
-      setTimeout(() => {
-        errorNotification.classList.remove('opacity-100');
-        setTimeout(() => document.body.removeChild(errorNotification), 300);
-      }, 3000);
+    } catch (error) {
+      console.error('保存图片失败:', error);
+      alert('保存图片失败，请稍后再试');
     }
   };
 
@@ -626,7 +839,7 @@ function Home() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                         <span>
-                          生成高质量的AI内容需要时间，请耐心等待。这段时间适合喝口水、放松一下眼睛。
+                          别着急，DeepSeek正在疯狂思考中，请耐心等待。这段时间适合喝口水、放松一下眼睛。
                         </span>
                       </p>
                     </div>
@@ -653,63 +866,67 @@ function Home() {
 
             {/* 结果展示区域 - 苹果风格卡片 */}
             {result && (
-              <div id="result-section" className="bg-white rounded-2xl shadow-sm overflow-hidden animate-fade-in" ref={resultCardRef} data-result-card>
-                {/* 博主信息区域 */}
-                <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-6">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      {bloggerInfo?.avatar ? (
-                        <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-white shadow-sm">
-                          <NextImage 
-                            src={bloggerInfo.avatar} 
-                            alt={`${bloggerInfo.nickname}的头像`}
-                            className="h-full w-full object-cover avatar-image"
-                            crossOrigin="anonymous"
-                            width={64}
-                            height={64}
-                            onError={(e) => {
-                              e.currentTarget.src = "/default-avatar.svg";
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <div className="h-16 w-16 rounded-full bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center shadow-sm">
-                          <span className="text-red-500 text-xl font-medium">
-                            {bloggerInfo?.nickname ? bloggerInfo.nickname.charAt(0) : "?"}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="ml-4">
-                      <h3 className="text-xl font-medium text-gray-900">
-                        {bloggerInfo?.nickname || "未知博主"}
-                      </h3>
+              <div className="animate-fade-in">
+                <div 
+                  ref={resultCardRef}
+                  className="bg-white rounded-2xl shadow-md overflow-hidden p-6 transition-all hover:shadow-lg border border-pink-50"
+                  data-result-card
+                >
+                  {/* 可点击的博主信息栏 */}
+                  <div className="flex items-start mb-5">
+                    <a 
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block h-12 w-12 rounded-xl overflow-hidden flex-shrink-0 mr-3 border border-pink-100 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <NextImage 
+                        src={bloggerInfo?.avatar || '/default-avatar.svg'} 
+                        alt={`${bloggerInfo?.nickname || '未知博主'}的头像`}
+                        className="h-full w-full object-cover"
+                        crossOrigin="anonymous"
+                        width={48}
+                        height={48}
+                        onError={(e) => {
+                          e.currentTarget.src = "/default-avatar.svg";
+                        }}
+                      />
+                    </a>
+                    <div className="flex-1">
+                      <a 
+                        href={url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="block"
+                      >
+                        <h3 className="text-lg font-bold text-gray-900 mb-1 leading-tight hover:text-red-500 transition-colors">
+                          {bloggerInfo?.nickname || '未知博主'}
+                        </h3>
+                      </a>
+                      <p className="text-sm text-pink-500 font-medium">被DeepSeek花式吐槽中...</p>
                     </div>
                   </div>
-                </div>
-                
-                {/* 吐槽内容区域 */}
-                <div className="p-6">
-                  <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed">
+                  
+                  {/* 美化后的吐槽内容 */}
+                  <div className="py-2 prose prose-pink max-w-none text-gray-800 leading-relaxed whitespace-pre-wrap">
                     {result.split('\n').map((line, i) => {
-                      // 处理标题
-                      if (line.startsWith('【') && line.includes('】')) {
-                        return <h4 key={i} className="text-lg font-semibold mt-5 mb-3 text-gray-900">{line}</h4>;
-                      }
-                      // 处理加粗文本 - 修复bold标记解析
-                      else if (line.includes('**') && line.split('**').length > 2) {
-                        const parts = line.split('**');
-                        return (
-                          <p key={i} className="mb-3">
-                            {parts.map((part, j) => {
-                              return j % 2 === 0 ? part : <strong key={j} className="font-semibold">{part}</strong>;
-                            })}
-                          </p>
-                        );
-                      }
-                      // 正常段落
-                      else if (line.trim()) {
-                        return <p key={i} className="mb-3">{line}</p>;
+                      // 增强富文本格式化 - 多种颜色和样式
+                      const formattedLine = line
+                        // 标题和重点强调
+                        .replace(/【(.+?)】/g, '<span class="font-bold text-red-600">【$1】</span>')
+                        // 加粗文字转为橙色强调
+                        .replace(/\*\*(.+?)\*\*/g, '<span class="font-semibold text-amber-600">$1</span>')
+                        // 下划线文字
+                        .replace(/\_\_(.+?)\_\_/g, '<span class="underline decoration-pink-500 decoration-2">$1</span>')
+                        // 斜体转为紫色强调
+                        .replace(/\*(.+?)\*/g, '<span class="italic text-purple-600">$1</span>')
+                        // 引用转为灰底黑字
+                        .replace(/\>(.+)/g, '<span class="bg-gray-100 text-gray-800 px-2 py-1 rounded">$1</span>');
+                        
+                      if (line.trim().startsWith('【') && line.trim().includes('】')) {
+                        return <h4 key={i} className="text-red-600 font-bold text-lg mt-4 mb-2" dangerouslySetInnerHTML={{__html: formattedLine}} />;
+                      } else if (line.trim()) {
+                        return <p key={i} className="mb-3" dangerouslySetInnerHTML={{__html: formattedLine}} />;
                       }
                       // 空行
                       return <div key={i} className="h-2" />;
@@ -717,16 +934,23 @@ function Home() {
                   </div>
                   
                   {/* 底部信息区域 */}
-                  <div className="mt-6 pt-4 border-t border-gray-100">
-                    <p className="text-sm text-gray-500 flex time-display">
+                  <div className="mt-6 pt-4 border-t border-gray-100 flex justify-between items-center">
+                    <p className="text-sm text-gray-500 flex time-display items-center">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 mr-1 flex-shrink-0">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                       </svg>
                       <span suppressHydrationWarning>生成于 {currentTime}</span>
                     </p>
+                    
+                    {/* 创作者信息 */}
+                    <div className="flex items-center">
+                      <span className="text-xs text-gray-400 mr-2">Powered by</span>
+                      <img src="/花叔.webp" alt="花叔" className="w-5 h-5 rounded-full mr-1" />
+                      <span className="text-xs font-medium text-gray-600">花叔（只工作不上班版</span>
+                    </div>
                   </div>
                   
-                  {/* 底部操作区域 - 在保存图片时会被隐藏 */}
+                  {/* 底部操作区域 */}
                   <div className="mt-4 flex space-x-2 result-actions">
                     <button 
                       onClick={() => {
@@ -774,15 +998,21 @@ function Home() {
                     {recentRoasts.map((roast) => (
                       <div 
                         key={roast.id} 
-                        className="border border-gray-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                        className="border border-pink-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer bg-white"
                         onClick={() => {
                           if (roast.shareId) {
                             router.push(`?share=${roast.shareId}`);
                           }
                         }}
                       >
-                        <div className="bg-gray-50 p-4 flex items-center">
-                          <div className="h-10 w-10 rounded-full overflow-hidden flex-shrink-0">
+                        <div className="bg-gradient-to-r from-pink-50 to-white p-4 flex items-center">
+                          <a 
+                            href={roast.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block h-10 w-10 rounded-full overflow-hidden flex-shrink-0 border border-pink-100 shadow-sm hover:shadow-md transition-shadow"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <NextImage 
                               src={roast.blogger.avatar} 
                               alt={`${roast.blogger.nickname}的头像`}
@@ -794,9 +1024,17 @@ function Home() {
                                 e.currentTarget.src = "/default-avatar.svg";
                               }}
                             />
-                          </div>
+                          </a>
                           <div className="ml-3 flex-1 truncate">
-                            <h3 className="text-sm font-medium text-gray-900">{roast.blogger.nickname}</h3>
+                            <a 
+                              href={roast.url} 
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <h3 className="text-sm font-medium text-gray-900 hover:text-red-500 transition-colors">{roast.blogger.nickname}</h3>
+                            </a>
                             <p className="text-xs text-gray-500">
                               {formatDate(roast.createdAt)}
                             </p>
@@ -806,6 +1044,12 @@ function Home() {
                           <p className="text-sm text-gray-700 line-clamp-3">
                             {roast.roast.split('\n')[0]}
                           </p>
+                        </div>
+                        {/* 添加创作者标记 */}
+                        <div className="px-4 pb-3 pt-1 border-t border-pink-50 flex justify-end items-center">
+                          <span className="text-xs text-gray-400 mr-1">Powered by</span>
+                          <img src="/花叔.webp" alt="花叔" className="w-4 h-4 rounded-full mr-1" />
+                          <span className="text-xs text-gray-500">花叔</span>
                         </div>
                       </div>
                     ))}
