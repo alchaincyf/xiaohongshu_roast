@@ -36,7 +36,7 @@ async function fetchRawXiaohongshuContent(url: string): Promise<string> {
 /**
  * 调用DeepSeek API进行幽默吐槽
  */
-async function generateRoast(content: string): Promise<string> {
+async function generateRoast(blogContent: string): Promise<string> {
   try {
     // DeepSeek API配置
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -45,7 +45,7 @@ async function generateRoast(content: string): Promise<string> {
       throw new Error('DeepSeek API密钥未配置');
     }
     
-    console.log('调用DeepSeek API，内容长度:', content.length);
+    console.log('调用DeepSeek API，内容长度:', blogContent.length);
     console.log('API密钥前几位:', apiKey.substring(0, 5) + '...');
     
     // 准备请求体 - 尝试使用 deepseek-reasoner 模型
@@ -54,7 +54,7 @@ async function generateRoast(content: string): Promise<string> {
       messages: [
         {
           role: 'user',
-          content: `请用500字roast这名小红书博主:\n\n${content}`
+          content: `用300字roast这名小红书博主:\n\n${blogContent}`
         }
       ],
       temperature: 0.7,
@@ -77,6 +77,7 @@ async function generateRoast(content: string): Promise<string> {
     
     // 读取响应内容（只读取一次）
     const responseText = await response.text();
+    console.log('DeepSeek API响应原始文本 (前100字符):', responseText.substring(0, 100) + '...');
     
     if (!response.ok) {
       console.error('DeepSeek API响应错误 (原始文本):', responseText);
@@ -101,24 +102,84 @@ async function generateRoast(content: string): Promise<string> {
     let data;
     try {
       data = JSON.parse(responseText);
-    } catch {
-      console.error('解析响应JSON失败');
-      throw new Error('无法解析API响应数据');
+    } catch (parseError) {
+      console.error('解析响应JSON失败, 错误:', parseError);
+      console.error('原始响应内容:', responseText);
+      
+      // 尝试处理潜在的格式问题 - 提取 JSON 部分
+      const jsonMatch = responseText.match(/\{.*\}/s);
+      if (jsonMatch) {
+        try {
+          data = JSON.parse(jsonMatch[0]);
+          console.log('成功从部分文本中提取JSON');
+        } catch (extractError) {
+          console.error('从响应中提取JSON失败:', extractError);
+          
+          // 最后的备用方案：如果无法解析，返回一个默认的吐槽
+          return `很抱歉，AI在生成吐槽时遇到了一些问题。
+
+【关于这位博主】
+这位小红书博主看起来很有趣，但AI在解析数据时遇到了技术问题。
+
+【吐槽】
+即使是AI也有卡壳的时候，就像人类写作时遇到的灵感枯竭。不过，如果您再试一次，也许会有惊喜。毕竟，失败是成功之母，重试是程序员的必备技能！
+
+希望下次能为您提供一个更有趣的吐槽！`;
+        }
+      } else {
+        // 如果找不到任何JSON格式的内容，返回默认吐槽
+        return `很抱歉，AI在生成吐槽时遇到了一些问题。
+
+【关于这位博主】
+这位小红书博主看起来很有趣，但AI在解析数据时遇到了技术问题。
+
+【吐槽】
+即使是AI也有卡壳的时候，就像人类写作时遇到的灵感枯竭。不过，如果您再试一次，也许会有惊喜。毕竟，失败是成功之母，重试是程序员的必备技能！
+
+希望下次能为您提供一个更有趣的吐槽！`;
+      }
+    }
+    
+    // 确保数据存在
+    if (!data) {
+      console.error('DeepSeek API返回的数据为空');
+      throw new Error('API返回的数据为空');
     }
     
     console.log('DeepSeek API响应数据结构:', Object.keys(data));
     
-    // 确保返回的数据符合预期格式
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      console.error('DeepSeek API返回的数据格式不符合预期:', data);
-      throw new Error('API返回的数据格式不正确');
+    // 确保返回的数据符合预期格式，添加更强大的错误处理
+    if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+      console.error('DeepSeek API返回的数据格式不符合预期 (无choices数组):', data);
+      throw new Error('API返回的数据格式不正确 (无choices数组)');
+    }
+    
+    const choice = data.choices[0];
+    if (!choice || !choice.message || !choice.message.content) {
+      console.error('DeepSeek API返回的choice格式不符合预期:', choice);
+      throw new Error('API返回的数据格式不正确 (无消息内容)');
+    }
+    
+    const content = choice.message.content;
+    if (typeof content !== 'string' || content.trim() === '') {
+      console.error('DeepSeek API返回的内容为空或非字符串:', content);
+      throw new Error('API返回的内容为空或非字符串');
     }
     
     console.log('成功获取到吐槽结果');
-    return data.choices[0].message.content;
+    return content;
   } catch (error) {
     console.error('Error calling DeepSeek API:', error);
-    throw new Error('生成吐槽失败，请稍后再试');
+    // 更友好的错误信息，并提供备用内容
+    return `很抱歉，AI在生成吐槽时遇到了一些问题。
+
+【关于这位博主】
+这位小红书博主看起来很有趣，但AI在处理时遇到了一些挑战。
+
+【吐槽】
+AI也有出错的时候，就像那些经常"翻车"的网红博主一样。不过，与其沮丧，不如再试一次！毕竟，在互联网的世界里，重新加载页面解决90%的问题。
+
+希望下次能为您提供一个精彩的吐槽！`;
   }
 }
 
@@ -165,7 +226,7 @@ export async function POST(request: NextRequest) {
         content = `用户名: 神秘小红书用户 (ID可能是: ${possibleUserId})\n简介: 这位博主非常神秘，连爬虫都无法窥探其内容的奥秘。\n\n未找到笔记，但我仍能根据有限信息进行创意吐槽`;
       }
       
-      // 2. 调用DeepSeek API生成吐槽
+      // 2. 调用DeepSeek API生成吐槽 - 现在不会抛出错误，而是返回备用内容
       const roast = await generateRoast(content);
       
       // Format the roast content before returning
@@ -185,19 +246,42 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       console.error('处理请求时发生错误:', error);
       const errorMessage = error instanceof Error ? error.message : '处理请求时发生错误';
-      return NextResponse.json(
-        { error: errorMessage }, 
-        { status: 500 }
-      );
+      
+      // 即使出错，也返回一个可用的结果，而不是错误
+      const defaultRoast = `很抱歉，AI在生成吐槽时遇到了一些问题。
+
+【技术小插曲】
+看起来我们遇到了一些技术问题，可能是因为：
+1. 服务器太忙了，就像小红书热门博主的评论区一样拥挤
+2. 这位博主太特别了，连AI都一时语塞
+3. 网络连接不稳定，像极了蹭网时的WiFi信号
+
+请稍后再试，下次一定会更好！`;
+
+      // 仍然返回200状态码，但带有备用内容
+      return NextResponse.json({ 
+        roast: defaultRoast,
+        blogger: {
+          nickname: url.split('/').pop() || '未知博主',
+          avatar: '/default-avatar.svg'
+        },
+        isError: true
+      });
     }
     
   } catch (error: unknown) {
     console.error('API error:', error);
     const errorMessage = error instanceof Error ? error.message : '处理请求时发生错误';
-    return NextResponse.json(
-      { error: errorMessage }, 
-      { status: 500 }
-    );
+    
+    // 始终返回一个有效的响应，即使是最外层的错误处理
+    return NextResponse.json({
+      roast: `看起来出了点问题，但别担心！\n\n就像小红书博主的"真实生活"vs镜头前的样子一样，有时候技术也会有落差。请稍后再试！`,
+      blogger: {
+        nickname: '系统错误',
+        avatar: '/default-avatar.svg'
+      },
+      isError: true
+    });
   }
 }
 
