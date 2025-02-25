@@ -183,111 +183,88 @@ AI也有出错的时候，就像那些经常"翻车"的网红博主一样。不�
   }
 }
 
-// 增加超时配置
-export const maxDuration = 60; // 60秒超时，Vercel 默认是10秒
-
+// 确保使用 Edge Runtime
 export const runtime = 'edge';
 
+// 设置最大执行时间
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
-  try {
-    // 检查环境变量是否正确加载
-    console.log('环境变量检查 - DEEPSEEK_API_KEY是否存在:', !!process.env.DEEPSEEK_API_KEY);
-    if (process.env.DEEPSEEK_API_KEY) {
-      console.log('环境变量 - DEEPSEEK_API_KEY前5位:', process.env.DEEPSEEK_API_KEY.substring(0, 5) + '...');
-    }
-    
-    const body = await request.json();
-    const { url } = body;
-    
-    if (!url || !url.includes('xiaohongshu.com')) {
-      return NextResponse.json(
-        { error: '请提供有效的小红书链接' }, 
-        { status: 400 }
-      );
-    }
-    
-    try {
-      // 1. 使用r.jina.ai爬取小红书内容
-      let content;
-      let bloggerInfo = {
-        nickname: '未知博主',
-        avatar: '/default-avatar.svg' // 默认头像，如果提取失败
-      };
-      
+  // 使用流式响应，避免超时
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
       try {
-        // 直接获取原始HTML内容，不做额外提取加工
-        content = await fetchRawXiaohongshuContent(url);
-        console.log('成功获取原始HTML内容，长度:', content.length);
+        const data = await request.json();
+        const url = data.url;
         
-        // 提取博主昵称和头像
-        bloggerInfo = extractBloggerInfo(content);
-        console.log('提取的博主信息:', bloggerInfo);
+        // 发送初始响应，让客户端知道请求已开始处理
+        controller.enqueue(encoder.encode(JSON.stringify({ 
+          status: 'processing',
+          message: '正在分析博主内容...'
+        })));
         
-      } catch (contentError) {
-        console.error('内容提取失败，使用备用内容:', contentError);
-        // 如果内容提取失败，使用备用内容，仍然可以进行吐槽
-        const urlParts = url.split('/');
-        const possibleUserId = urlParts[urlParts.length - 1];
-        content = `用户名: 神秘小红书用户 (ID可能是: ${possibleUserId})\n简介: 这位博主非常神秘，连爬虫都无法窥探其内容的奥秘。\n\n未找到笔记，但我仍能根据有限信息进行创意吐槽`;
+        // 爬取内容
+        let html;
+        try {
+          html = await fetchRawXiaohongshuContent(url);
+          controller.enqueue(encoder.encode(JSON.stringify({ 
+            status: 'fetched',
+            message: '已获取博主内容，正在生成吐槽...'
+          })));
+        } catch (error) {
+          controller.enqueue(encoder.encode(JSON.stringify({ 
+            status: 'error',
+            message: '获取博主内容失败',
+            error: error instanceof Error ? error.message : '未知错误'
+          })));
+          controller.close();
+          return;
+        }
+        
+        // 提取博主信息
+        const bloggerInfo = extractBloggerInfo(html);
+        
+        // 生成吐槽
+        let roast;
+        try {
+          roast = await generateRoast(html);
+          // 最终结果
+          controller.enqueue(encoder.encode(JSON.stringify({ 
+            status: 'complete',
+            roast: roast,
+            blogger: bloggerInfo,
+            isError: false
+          })));
+        } catch (error) {
+          controller.enqueue(encoder.encode(JSON.stringify({ 
+            status: 'error',
+            message: '生成吐槽失败',
+            roast: `看起来出了点问题，但别担心！\n\n就像小红书博主的"真实生活"vs镜头前的样子一样，有时候技术也会有落差。请稍后再试！`,
+            blogger: bloggerInfo,
+            isError: true
+          })));
+        }
+        
+        controller.close();
+      } catch (error) {
+        controller.enqueue(encoder.encode(JSON.stringify({ 
+          status: 'error',
+          message: '处理请求失败',
+          error: error instanceof Error ? error.message : '未知错误'
+        })));
+        controller.close();
       }
-      
-      // 2. 调用DeepSeek API生成吐槽 - 现在不会抛出错误，而是返回备用内容
-      const roast = await generateRoast(content);
-      
-      // Format the roast content before returning
-      const formattedRoast = roast
-        .trim()
-        // Ensure separate paragraphs have double line breaks
-        .replace(/\n{3,}/g, '\n\n')
-        // Ensure single line breaks are preserved
-        .replace(/\n/g, '\n');
-      
-      // Return complete JSON response
-      return NextResponse.json({ 
-        roast: formattedRoast, 
-        blogger: bloggerInfo 
-      });
-      
-    } catch (error) {
-      console.error('处理请求时发生错误:', error);
-      const errorMsg = error instanceof Error ? error.message : '处理请求时发生错误';
-      
-      // 即使出错，也返回一个可用的结果，而不是错误
-      const defaultRoast = `很抱歉，AI在生成吐槽时遇到了一些问题。
-
-【技术小插曲】
-看起来我们遇到了一些技术问题，可能是因为：
-1. 服务器太忙了，就像小红书热门博主的评论区一样拥挤
-2. 这位博主太特别了，连AI都一时语塞
-3. 网络连接不稳定，像极了蹭网时的WiFi信号
-
-请稍后再试，下次一定会更好！`;
-
-      // 仍然返回200状态码，但带有备用内容
-      return NextResponse.json({ 
-        roast: defaultRoast,
-        blogger: {
-          nickname: url.split('/').pop() || '未知博主',
-          avatar: '/default-avatar.svg'
-        },
-        isError: true
-      });
     }
-    
-  } catch (error: unknown) {
-    console.error('API error:', error);
-    const errorMsg = error instanceof Error ? error.message : '处理请求时发生错误';
-    
-    // 始终返回一个有效的响应，即使是最外层的错误处理
-    return NextResponse.json({
-      roast: `看起来出了点问题，但别担心！\n\n就像小红书博主的"真实生活"vs镜头前的样子一样，有时候技术也会有落差。请稍后再试！`,
-      blogger: {
-        nickname: '系统错误',
-        avatar: '/default-avatar.svg'
-      },
-      isError: true
-    });
-  }
+  });
+  
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive'
+    }
+  });
 }
 
 /**

@@ -257,59 +257,85 @@ function Home() {
     );
   }, []);
 
-  // 修改 API 调用函数
+  // 修改分析函数以处理流式响应
   const analyzeProfile = async (url: string) => {
     try {
       setLoading(true);
-      setLoadingMessage(getRandomLoadingMessage());
+      setLoadingMessage("正在连接到服务器...");
       setError("");
       startLoadingAnimation();
-      
-      // 增加超时设置
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 50000); // 50秒超时
       
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
-        signal: controller.signal
+        body: JSON.stringify({ url })
       });
-      
-      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error(`HTTP错误: ${response.status}`);
       }
       
-      const result = await response.json();
-      stopLoadingAnimation();
+      if (!response.body) {
+        throw new Error("响应没有内容");
+      }
       
-      if (result.success) {
-        setResult(result.result);
-        setBloggerInfo(result.blogger);
-        setShareId(result.shareId || null);
-        // 滚动到结果
-        setTimeout(() => {
-          const resultElement = document.getElementById('result-section');
-          if (resultElement) {
-            resultElement.scrollIntoView({ behavior: 'smooth' });
+      // 处理流式响应
+      const reader = response.body.getReader();
+      let decoder = new TextDecoder();
+      let done = false;
+      
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+        
+        if (value) {
+          try {
+            const text = decoder.decode(value);
+            const data = JSON.parse(text);
+            
+            // 根据状态更新UI
+            if (data.status === 'processing') {
+              setLoadingMessage(data.message);
+            } else if (data.status === 'fetched') {
+              setLoadingMessage(data.message);
+            } else if (data.status === 'complete') {
+              // 成功完成
+              setResult(data.roast);
+              setBloggerInfo(data.blogger);
+              
+              // 保存到 Firebase 并获取分享ID
+              try {
+                const newShareId = await saveRoast({
+                  blogger: data.blogger,
+                  roast: data.roast,
+                  url: url
+                });
+                setShareId(newShareId);
+              } catch (saveError) {
+                console.error("保存吐槽记录失败:", saveError);
+              }
+            } else if (data.status === 'error') {
+              // 有错误但仍显示部分结果
+              if (data.roast) {
+                setResult(data.roast);
+                if (data.blogger) {
+                  setBloggerInfo(data.blogger);
+                }
+              } else {
+                setError(data.message || "生成吐槽失败");
+              }
+            }
+          } catch (parseError) {
+            console.error("解析响应失败:", parseError);
           }
-        }, 500);
-      } else {
-        setError(result.error || "生成吐槽失败，请稍后重试");
+        }
       }
     } catch (error) {
       console.error("分析失败:", error);
       stopLoadingAnimation();
-      
-      // 处理超时错误
-      if (error.name === 'AbortError') {
-        setError("请求超时，AI可能需要更长时间处理。请稍后重试。");
-      } else {
-        setError((error as Error).message || "发生未知错误，请稍后重试");
-      }
+      setError((error as Error).message || "发生未知错误，请稍后重试");
     } finally {
+      stopLoadingAnimation();
       setLoading(false);
     }
   };
