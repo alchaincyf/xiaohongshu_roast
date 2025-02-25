@@ -45,8 +45,9 @@ async function generateRoast(blogContent: string): Promise<string> {
     throw new Error("缺少DeepSeek API密钥");
   }
   
-  console.log("DeepSeek API密钥长度:", apiKey.length);
-  console.log("请求内容长度:", blogContent.length);
+  // 清理内容，移除链接和不必要元素
+  const cleanedContent = cleanContentForAI(blogContent);
+  console.log("清理前内容长度:", blogContent.length, "清理后:", cleanedContent.length);
   
   try {
     const requestBody = {
@@ -60,11 +61,11 @@ async function generateRoast(blogContent: string): Promise<string> {
 1. 【标题】使用【】括起重要段落标题
 2. **加粗** 用于强调重要观点
 
-以下是博主内容：\n\n${blogContent.substring(0, 18000)}`
+以下是博主内容：\n\n${cleanedContent.substring(0, 18000)}`
         }
       ],
       temperature: 0.7,
-      max_tokens: 2000
+      max_tokens: 4000
     };
     
     console.log("开始发送请求到DeepSeek API...");
@@ -128,6 +129,42 @@ async function generateRoast(blogContent: string): Promise<string> {
   }
 }
 
+/**
+ * 清理HTML/Markdown内容，移除链接和不必要元素
+ */
+function cleanContentForAI(content: string): string {
+  // 保存开始处理时间
+  const startTime = Date.now();
+  
+  let cleanedContent = content;
+  
+  // 1. 移除Markdown链接，保留链接文本 [text](url) -> text
+  cleanedContent = cleanedContent.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  
+  // 2. 移除Markdown图片 ![alt](url) -> alt
+  cleanedContent = cleanedContent.replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1');
+  
+  // 3. 移除所有URL (http/https)
+  cleanedContent = cleanedContent.replace(/https?:\/\/[^\s<>"']+/g, '');
+  
+  // 4. 移除URL参数组合 (?xsec_token=等)
+  cleanedContent = cleanedContent.replace(/\?[^\s<>"']+/g, '');
+  
+  // 5. 移除网页特殊格式标记 imageView2, format=webp等
+  cleanedContent = cleanedContent.replace(/\|imageView2[^\s<>"']+/g, '');
+  cleanedContent = cleanedContent.replace(/\?imageView2[^\s<>"']+/g, '');
+  
+  // 6. 移除连续多个空行，保留一个空行
+  cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n');
+  
+  // 记录处理时间和减少的内容长度
+  const processTime = Date.now() - startTime;
+  const reductionPercent = ((content.length - cleanedContent.length) / content.length * 100).toFixed(2);
+  console.log(`内容清理完成: ${processTime}ms, 减少长度: ${content.length - cleanedContent.length}字符 (${reductionPercent}%)`);
+  
+  return cleanedContent;
+}
+
 // 确保使用 Edge Runtime
 export const runtime = 'edge';
 
@@ -180,6 +217,22 @@ export async function POST(request: NextRequest) {
       }, { status: 200 });
     }
     
+    // 清理内容
+    console.log("开始清理内容...");
+    let cleanedContent;
+    try {
+      const cleanStartTime = Date.now();
+      cleanedContent = cleanContentForAI(html);
+      console.log(`内容清理完成: ${Date.now() - cleanStartTime}ms, 清理后长度: ${cleanedContent?.length || 0}`);
+    } catch (cleanError) {
+      console.error("清理内容失败:", cleanError);
+      return NextResponse.json({
+        success: false,
+        error: "清理内容失败",
+        errorDetail: JSON.stringify(cleanError)
+      }, { status: 200 });
+    }
+    
     // 生成吐槽 - 添加重试机制
     console.log("开始调用AI生成吐槽...");
     let roast;
@@ -190,7 +243,7 @@ export async function POST(request: NextRequest) {
       try {
         attempts++;
         const aiStartTime = Date.now();
-        roast = await generateRoast(html);
+        roast = await generateRoast(cleanedContent);
         console.log(`AI生成吐槽完成: ${Date.now() - aiStartTime}ms, 内容长度: ${roast?.length || 0}`);
         break; // 成功则跳出循环
       } catch (aiError) {

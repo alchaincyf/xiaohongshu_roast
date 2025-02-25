@@ -73,6 +73,8 @@ function Home() {
   const [currentYear, setCurrentYear] = useState<number>(2025);
   const [mounted, setMounted] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
+  const [historyRoasts, setHistoryRoasts] = useState<RoastRecord[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
   
   const resultCardRef = useRef<HTMLDivElement>(null);
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -717,6 +719,27 @@ function Home() {
     }, 2000);
   };
 
+  // 加载历史吐槽记录的函数
+  const loadBloggerHistory = async (bloggerId: string) => {
+    if (!bloggerId) return;
+    
+    try {
+      setLoadingHistory(true);
+      const history = await getBloggerRoastHistory(bloggerId);
+      setHistoryRoasts(history);
+    } catch (error) {
+      console.error("加载博主历史吐槽失败:", error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // 修改打开历史模态框的处理程序
+  const handleOpenHistoryModal = (bloggerId: string) => {
+    setShowHistoryModal(true);
+    loadBloggerHistory(bloggerId);
+  };
+
   // 如果没有挂载，返回一个简单的加载状态
   if (!mounted) {
     return null; // 返回 null 而不是加载界面，可以避免闪烁
@@ -979,7 +1002,7 @@ function Home() {
                     {bloggerInfo?.bloggerId && (
                       <button
                         className="text-sm px-3 py-1.5 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 transition-colors flex items-center"
-                        onClick={() => setShowHistoryModal(true)}
+                        onClick={() => handleOpenHistoryModal(bloggerInfo.bloggerId)}
                       >
                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -1085,6 +1108,55 @@ function Home() {
               </ol>
               <p className="mt-4 text-sm text-gray-500">注意：本工具仅供娱乐，请文明使用，勿用于攻击他人。</p>
             </div>
+
+            {/* 历史吐槽模态框 */}
+            {showHistoryModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-xl max-w-xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+                  <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+                    <h3 className="font-bold text-lg">{bloggerInfo?.nickname || '博主'} 的历史吐槽</h3>
+                    <button onClick={() => setShowHistoryModal(false)} className="text-gray-500 hover:text-gray-700">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <div className="overflow-y-auto flex-1 p-4">
+                    {loadingHistory ? (
+                      <div className="flex justify-center items-center py-10">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+                      </div>
+                    ) : historyRoasts.length > 0 ? (
+                      historyRoasts.map((roast, index) => (
+                        <div key={roast.id} className={`mb-4 pb-4 ${index < historyRoasts.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                          <p className="text-xs text-gray-500 mb-2">
+                            {new Date(roast.createdAt).toLocaleString('zh-CN')}
+                          </p>
+                          <div className="prose prose-pink max-w-none text-gray-800 leading-relaxed whitespace-pre-wrap text-sm">
+                            {roast.roast.split('\n').map((line, i) => {
+                              // 使用相同的格式处理代码
+                              const formattedLine = line
+                                .replace(/【(.+?)】/g, '<span class="font-bold text-red-600">【$1】</span>')
+                                .replace(/\*\*(.+?)\*\*/g, '<span class="font-semibold text-amber-600">$1</span>');
+                                
+                              if (line.trim().startsWith('【') && line.trim().includes('】')) {
+                                return <h4 key={i} className="text-red-600 font-bold text-base mt-4 mb-2" dangerouslySetInnerHTML={{__html: formattedLine}} />;
+                              } else if (line.trim()) {
+                                return <p key={i} className="mb-2" dangerouslySetInnerHTML={{__html: formattedLine}} />;
+                              }
+                              return <div key={i} className="h-2" />;
+                            })}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center text-gray-500 py-8">没有找到历史吐槽记录</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </main>
 
