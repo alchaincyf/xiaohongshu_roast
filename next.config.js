@@ -17,7 +17,9 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === "production",
   },
   
-  experimental: {},
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  },
   
   // 添加图片域名配置
   images: {

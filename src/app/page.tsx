@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import html2canvas from 'html2canvas';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { saveRoast, getRecentRoasts, getRoastByShareId, RoastRecord } from '@/lib/firestore';
@@ -44,6 +44,18 @@ const ClientOnlyWrapper = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// 创建一个使用 searchParams 的子组件
+function SearchParamsComponent({ onParamsLoad }: { onParamsLoad: (share: string | null) => void }) {
+  const searchParams = useSearchParams();
+  
+  useEffect(() => {
+    const share = searchParams.get('share');
+    onParamsLoad(share);
+  }, [searchParams, onParamsLoad]);
+  
+  return null; // 这个组件不渲染任何内容，只是处理 searchParams
+}
+
 function Home() {
   const [url, setUrl] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -65,7 +77,6 @@ function Home() {
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const messageTimerRef = useRef<NodeJS.Timeout | null>(null);
   
-  const searchParams = useSearchParams();
   const router = useRouter();
   
   // 添加一个强制客户端渲染的效果
@@ -101,16 +112,15 @@ function Home() {
     }
   }, [lastDoc]);
   
-  // 检查URL中是否有分享ID
-  useEffect(() => {
-    const share = searchParams.get('share');
+  // 添加一个回调函数来处理 searchParams
+  const handleParamsLoad = useCallback((share: string | null) => {
     if (share) {
       loadSharedRoast(share);
     } else {
       // 加载最近的吐槽
       loadRecentRoasts();
     }
-  }, [searchParams, loadRecentRoasts]);
+  }, []);
   
   // 加载分享的吐槽
   const loadSharedRoast = async (shareId: string) => {
@@ -497,6 +507,11 @@ function Home() {
   return (
     <ClientOnlyWrapper>
       <div className="min-h-screen bg-[#f5f5f7] flex flex-col">
+        {/* 添加 Suspense 包裹 SearchParamsComponent */}
+        <Suspense fallback={null}>
+          <SearchParamsComponent onParamsLoad={handleParamsLoad} />
+        </Suspense>
+
         {/* 苹果风格的顶部导航栏 */}
         <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100">
           <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
