@@ -261,78 +261,62 @@ function Home() {
   const analyzeProfile = async (url: string) => {
     try {
       setLoading(true);
-      setLoadingMessage("正在连接到服务器...");
+      setLoadingMessage(getRandomLoadingMessage());
       setError("");
       startLoadingAnimation();
       
+      console.log("开始分析小红书博主:", url);
+      const startTime = Date.now();
+      
+      // 使用 fetch 发送请求到 API
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP错误: ${response.status}`);
-      }
+      console.log(`API响应状态: ${response.status}, 耗时: ${Date.now() - startTime}ms`);
       
-      if (!response.body) {
-        throw new Error("响应没有内容");
-      }
+      const responseData = await response.json();
+      console.log("API响应数据类型:", typeof responseData);
+      console.log("API响应是否成功:", responseData.success);
       
-      // 处理流式响应
-      const reader = response.body.getReader();
-      let decoder = new TextDecoder();
-      let done = false;
-      
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
+      if (!responseData.success) {
+        console.error("API返回错误:", responseData.error);
+        console.error("错误详情:", responseData.errorDetail);
+        setError(responseData.error || "生成吐槽失败，请稍后再试");
         
-        if (value) {
-          try {
-            const text = decoder.decode(value);
-            const data = JSON.parse(text);
-            
-            // 根据状态更新UI
-            if (data.status === 'processing') {
-              setLoadingMessage(data.message);
-            } else if (data.status === 'fetched') {
-              setLoadingMessage(data.message);
-            } else if (data.status === 'complete') {
-              // 成功完成
-              setResult(data.roast);
-              setBloggerInfo(data.blogger);
-              
-              // 保存到 Firebase 并获取分享ID
-              try {
-                const newShareId = await saveRoast({
-                  blogger: data.blogger,
-                  roast: data.roast,
-                  url: url
-                });
-                setShareId(newShareId);
-              } catch (saveError) {
-                console.error("保存吐槽记录失败:", saveError);
-              }
-            } else if (data.status === 'error') {
-              // 有错误但仍显示部分结果
-              if (data.roast) {
-                setResult(data.roast);
-                if (data.blogger) {
-                  setBloggerInfo(data.blogger);
-                }
-              } else {
-                setError(data.message || "生成吐槽失败");
-              }
-            }
-          } catch (parseError) {
-            console.error("解析响应失败:", parseError);
-          }
+        // 即使有错误也显示备用吐槽内容
+        if (responseData.roast) {
+          setResult(responseData.roast);
         }
+        if (responseData.blogger) {
+          setBloggerInfo(responseData.blogger);
+        }
+        return;
       }
+      
+      // 成功情况下更新状态
+      setResult(responseData.roast);
+      setBloggerInfo(responseData.blogger);
+      
+      // 保存到 Firebase 并获取分享ID
+      try {
+        const saveStartTime = Date.now();
+        console.log("开始保存吐槽到Firebase...");
+        const newShareId = await saveRoast({
+          blogger: responseData.blogger,
+          roast: responseData.roast,
+          url: url
+        });
+        console.log(`保存到Firebase完成, 耗时: ${Date.now() - saveStartTime}ms, ShareID: ${newShareId}`);
+        setShareId(newShareId);
+      } catch (saveError) {
+        console.error("保存吐槽记录失败:", saveError);
+      }
+      
     } catch (error) {
-      console.error("分析失败:", error);
-      stopLoadingAnimation();
+      console.error("分析博主失败:", error);
       setError((error as Error).message || "发生未知错误，请稍后重试");
     } finally {
       stopLoadingAnimation();
