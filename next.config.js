@@ -23,6 +23,16 @@ const nextConfig = {
     // 忽略 ESLint 错误
     appDir: true,
   },
+  // 添加图片域名配置
+  images: {
+    domains: [
+      'sns-avatar-qc.xhscdn.com',    // 小红书头像域名
+      'sns-img-qc.xhscdn.com',       // 小红书图片域名
+      'ci.xiaohongshu.com',          // 小红书另一个图片域名
+      'sns-img-bd.xhscdn.com',       // 可能的头像域名变体
+      'sns-avatar-bd.xhscdn.com'     // 可能的头像域名变体
+    ],
+  },
 };
 
 module.exports = nextConfig; 
