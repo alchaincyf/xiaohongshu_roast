@@ -54,6 +54,9 @@ async function generateRoast(blogContent: string): Promise<string> {
 
 使用以下 Markdown 格式增强表现力:
 1. 【标题】使用【】括起重要段落标题
+2. 总共3-4个标题
+3. 每个标题下有1-3个段落
+4. 适当使用加粗符合体现亮点
 
 以下是博主内容：\n\n${cleanedContent.substring(0, 18000)}`
         }
