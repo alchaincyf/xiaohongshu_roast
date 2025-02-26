@@ -64,6 +64,218 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return Promise.race([promise, timeoutPromise]);
 }
 
+function Footer() {
+  const currentYear = new Date().getFullYear();
+  
+  return (
+    <footer className="bg-gradient-to-b from-gray-900 to-black text-white py-12 mt-16">
+      <div className="max-w-5xl mx-auto px-4">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8">
+          <div className="mb-6 md:mb-0">
+            <h3 className="text-xl font-bold flex items-center">
+              <span className="mr-2">👻</span>
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-rose-400 to-pink-300">
+                红薯吐槽机
+              </span>
+            </h3>
+            <p className="text-gray-400 mt-2 max-w-md">
+              AI驱动的小红书博主内容分析工具，让吐槽更有深度，更有趣
+            </p>
+          </div>
+          
+          <div className="flex space-x-4">
+            <a href="#" className="text-gray-400 hover:text-pink-400 transition-colors">
+              <span className="sr-only">关于我们</span>
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path fillRule="evenodd" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" clipRule="evenodd"></path>
+              </svg>
+            </a>
+            <a href="#" className="text-gray-400 hover:text-pink-400 transition-colors">
+              <span className="sr-only">隐私政策</span>
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path fillRule="evenodd" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" clipRule="evenodd"></path>
+              </svg>
+            </a>
+            <a href="https://github.com/yourusername/xiaohongshu-roast" className="text-gray-400 hover:text-pink-400 transition-colors">
+              <span className="sr-only">GitHub</span>
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.032 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
+              </svg>
+            </a>
+          </div>
+        </div>
+        
+        <div className="mt-8 pt-6 border-t border-gray-700 flex flex-col md:flex-row justify-between items-center">
+          <p className="text-sm text-gray-500">&copy; {currentYear} 红薯吐槽机. 保留所有权利.</p>
+          <p className="text-xs text-gray-500 mt-2 md:mt-0">本工具仅供娱乐使用，AI生成内容不代表开发者观点</p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+// 将handleImageError提升到组件之外，使其成为全局函数
+// 添加在Footer组件之后，所有卡片组件之前
+function handleImageError(event: React.SyntheticEvent<HTMLImageElement, Event>) {
+  const img = event.currentTarget;
+  console.log(`图片加载失败: ${img.src}，使用默认头像`);
+  img.src = '/default-avatar.svg';
+  img.onerror = null; // 防止循环触发
+}
+
+// 更新 ResultCard 组件，优化间距和视觉设计
+function ResultCard({ bloggerInfo, url, result, resultCardRef, saveAsImage, shareRoast, handleOpenHistoryModal, shareId }) {
+  // 处理文本格式化，优化与标题的关联性
+  const formatRoastContent = (content) => {
+    // 替换【标题】为带样式的标题 - 增加上边距，减少下边距，符合格式塔原理
+    const withFormattedHeadings = content.replace(/【(.*?)】/g, '<h3 class="text-lg font-bold text-pink-600 mt-5 mb-0.5 flex items-center"><span class="w-1 h-4 bg-pink-500 rounded mr-1.5"></span>$1</h3>');
+    
+    // 替换**文本**为加粗高亮文本
+    const withBoldText = withFormattedHeadings.replace(/\*\*(.*?)\*\*/g, '<span class="font-bold bg-pink-50 text-pink-700 px-1 rounded">$1</span>');
+    
+    // 处理换行，减少垂直间距
+    return withBoldText
+      .split(/\n\n+/) // 分割双换行以上的为段落
+      .map(para => para
+        .replace(/\n/g, '<br class="mb-0.5" />') // 单换行替换为小间距换行
+      )
+      .join('<div class="mb-1.5"></div>'); // 段落间使用小型间隔
+  };
+
+  return (
+    <div 
+      ref={resultCardRef} 
+      className="bg-white rounded-xl overflow-hidden shadow-lg border border-pink-100 transform transition-all duration-500 hover:shadow-xl"
+    >
+      {/* 博主信息区域 - 减小内边距 */}
+      <div className="bg-gradient-to-r from-rose-400 to-pink-500 p-4 text-white">
+        <div className="flex items-center">
+          <img 
+            src={bloggerInfo.avatar || '/default-avatar.svg'} 
+            alt={bloggerInfo.nickname} 
+            className="w-14 h-14 rounded-full border-2 border-white shadow-md object-cover"
+            onError={handleImageError}
+          />
+          <div className="ml-3">
+            <h3 className="text-lg font-bold">{bloggerInfo.nickname}</h3>
+            <div className="flex items-center">
+              <p className="text-rose-100 text-xs">小红书博主</p>
+              <div className="ml-2 text-xs bg-white/20 px-1.5 py-0.5 rounded-full inline-block">
+                被DeepSeek吐槽
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* 优化后的吐槽内容区域 - 通过自定义样式覆盖减小默认间距 */}
+      <div className="px-4 py-3 bg-white">
+        <div 
+          className="prose prose-sm prose-pink max-w-none text-gray-700 leading-relaxed [&>p]:my-1 [&>p:first-child]:mt-0 [&>h3]:text-pink-600 [&>h3]:font-bold [&>h3+p]:mt-0.5 [&_br]:mb-0"
+          dangerouslySetInnerHTML={{ __html: formatRoastContent(result) }}
+        />
+        
+        {/* 底部装饰元素 - 进一步减小上边距 */}
+        <div className="mt-2 pt-2 border-t border-pink-100 flex justify-end">
+          <div className="text-xs text-gray-400 italic">
+            AI生成于 {new Date().toLocaleDateString()}
+          </div>
+        </div>
+      </div>
+      
+      {/* 分享按钮区域 - 减小内边距并紧凑化按钮 */}
+      <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex flex-wrap justify-between items-center gap-2">
+        <div className="flex space-x-2">
+          <button 
+            onClick={saveAsImage}
+            className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-md shadow-sm hover:bg-gray-50 transition-colors flex items-center text-sm"
+          >
+            <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            保存图片
+          </button>
+          
+          <button 
+            onClick={shareRoast}
+            className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-md shadow-sm hover:bg-gray-50 transition-colors flex items-center text-sm"
+          >
+            <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            复制链接
+          </button>
+        </div>
+        
+        <div className="text-xs text-gray-500">
+          {shareId ? (
+            <span>分享ID: {shareId}</span>
+          ) : (
+            <span>生成于 {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 添加 RoastCard 组件定义
+function RoastCard({ roast, router, formatDate }) {
+  const handleClick = () => {
+    if (roast.shareId) {
+      router.push(`/?share=${roast.shareId}`);
+    }
+  };
+  
+  return (
+    <div 
+      className="bg-white overflow-hidden rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
+      onClick={handleClick}
+    >
+      <div className="p-4">
+        <div className="flex items-center mb-3">
+          <img 
+            src={roast.blogger?.avatar || '/default-avatar.svg'} 
+            alt={roast.blogger?.nickname || '博主'} 
+            className="w-10 h-10 rounded-full mr-3"
+            onError={handleImageError}
+          />
+          <div>
+            <h3 className="font-medium text-gray-900">{roast.blogger?.nickname || '未知博主'}</h3>
+            <p className="text-xs text-gray-500">{formatDate(roast.createdAt)}</p>
+          </div>
+        </div>
+        
+        <p className="text-gray-700 text-sm line-clamp-3 mb-2">
+          {roast.roast.substring(0, 120)}...
+        </p>
+        
+        <div className="text-xs text-rose-500 font-medium">
+          点击查看完整吐槽
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 加载状态消息
+const loadingMessages = [
+  "AI正在卧底小红书...",
+  "正在扫描博主的精修照片...",
+  "解析博主的各种滤镜中...",
+  "揭秘博主的真实状态...",
+  "查询博主的种草套路...",
+  "分析博主的营销话术...",
+  "计算博主的夸张指数...",
+  "检测博主的真实性分数...",
+  "寻找博主的反差点...",
+  "组装犀利吐槽中..."
+];
+
+const getRandomLoadingMessage = () => {
+  return loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+};
+
 function Home() {
   const [url, setUrl] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -160,27 +372,6 @@ function Home() {
     if (!loadingMore && hasMore) {
       loadRecentRoasts(true);
     }
-  };
-
-  // 随机加载消息数组
-  const loadingMessages = [
-    "正在分析博主的精彩内容...",
-    "AI正在思考犀利的吐槽...",
-    "正在生成有趣的评论...",
-    "AI正在整理语言，请稍等...",
-    "正在为您定制个性化吐槽...",
-    "分析已完成60%，请再等一下...",
-    "AI正在发挥创意，马上就好...",
-    "正在查找博主的特点，这需要一点时间...",
-    "好的吐槽需要一点时间酝酿...",
-    "正在酝酿妙语连珠的评论...",
-    "创意需要时间，请稍等片刻...",
-    "我们正在为您创作最有趣的吐槽...",
-  ];
-
-  // 随机选择一条加载消息
-  const getRandomLoadingMessage = () => {
-    return loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
   };
 
   // 启动加载动画
@@ -708,22 +899,13 @@ function Home() {
 
   // 分享吐槽
   const shareRoast = () => {
-    if (shareId) {
-      const shareUrl = `${window.location.origin}?share=${shareId}`;
-      
-      if (navigator.share) {
-        navigator.share({
-          title: `${bloggerInfo?.nickname || '小红书博主'}的AI吐槽`,
-          text: `看看AI是怎么吐槽${bloggerInfo?.nickname || '这位小红书博主'}的！`,
-          url: shareUrl
-        }).catch(err => {
-          console.error('分享失败:', err);
-          copyToClipboard(shareUrl);
-        });
-      } else {
-        copyToClipboard(shareUrl);
-      }
-    }
+    if (!shareId) return;
+    
+    // 构建分享链接
+    const shareUrl = `${window.location.origin}/?share=${shareId}`;
+    
+    // 直接复制到剪贴板
+    copyToClipboard(shareUrl);
   };
   
   // 复制到剪贴板并显示通知
@@ -762,14 +944,6 @@ function Home() {
     loadBloggerHistory(bloggerId);
   };
 
-  // 在页面组件中添加图片错误处理函数
-  const handleImageError = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    const img = event.currentTarget;
-    console.log(`图片加载失败: ${img.src}，使用默认头像`);
-    img.src = '/default-avatar.svg';
-    img.onerror = null; // 防止循环触发
-  };
-
   // 如果没有挂载，返回一个简单的加载状态
   if (!mounted) {
     return null; // 返回 null 而不是加载界面，可以避免闪烁
@@ -778,23 +952,24 @@ function Home() {
   // 返回完整的UI
   return (
     <ClientOnlyWrapper>
-      <div className="min-h-screen bg-[#f5f5f7] flex flex-col">
-        {/* 添加 Suspense 包裹 SearchParamsComponent */}
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-pink-50">
         <Suspense fallback={null}>
           <SearchParamsComponent onParamsLoad={handleParamsLoad} />
         </Suspense>
 
-        {/* 苹果风格的顶部导航栏 */}
-        <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100">
-          <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-            <h1 className="text-xl font-medium text-gray-900">
-              <span className="text-red-500">小红书</span>博主吐槽助手
+        <header className="bg-gradient-to-r from-rose-500 to-pink-600 sticky top-0 z-10 shadow-md">
+          <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-white flex items-center">
+              <img src="/logo.svg" alt="红薯吐槽机" className="w-8 h-8 mr-2" />
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-100 to-white">
+                红薯吐槽机
+              </span>
             </h1>
             <a 
-              href="https://github.com/alchaincyf/xiaohongshu_roast" 
-              className="text-gray-500 hover:text-gray-700 transition-colors"
+              href="https://github.com/yourusername/xiaohongshu-roast"
               target="_blank"
               rel="noopener noreferrer"
+              className="text-white hover:text-pink-100 transition-colors"
             >
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
                 <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.032 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
@@ -803,103 +978,65 @@ function Home() {
           </div>
         </header>
 
-        <main className="flex-1 py-8">
-          <div className="max-w-4xl mx-auto px-4">
-            {/* 输入区域 - 苹果风格卡片 */}
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-8">
-              <div className="p-6">
-                <h2 className="text-center text-2xl font-medium text-gray-900 mb-6">
-                  输入小红书博主链接，生成幽默吐槽
-                </h2>
+        <main className="flex-1 py-10">
+          <div className="max-w-5xl mx-auto px-4 space-y-8">
+            
+            {!loading && !result && !error && (
+              <div className="text-center mb-10">
+                <h2 className="text-3xl font-bold text-gray-800 mb-4">用AI把<span className="text-pink-600">小红书博主</span>吐槽到体无完肤</h2>
+                <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                  复制一个小红书博主页面链接，我们的AI会自动分析博主内容并生成一段犀利有趣的吐槽
+                </p>
+              </div>
+            )}
+            
+            {!loading && !result && (
+              <div className="bg-gradient-to-br from-rose-50 via-pink-50 to-white rounded-2xl p-6 shadow-lg border border-pink-100 relative overflow-hidden">
+                <div className="absolute -top-16 -right-16 w-32 h-32 bg-gradient-to-br from-pink-200 to-pink-100 rounded-full opacity-60"></div>
+                <div className="absolute -bottom-12 -left-12 w-24 h-24 bg-gradient-to-br from-rose-200 to-pink-100 rounded-full opacity-50"></div>
                 
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  <div className="relative rounded-xl shadow-sm">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4 relative z-10">
+                  博主灵魂透视
+                </h2>
+                <p className="text-gray-600 mb-6 relative z-10">
+                  AI自动读取博主内容，一键生成毒舌吐槽，让红薯博主现出原形
+                </p>
+                
+                <form onSubmit={handleSubmit} className="relative z-10">
+                  <div className="relative">
                     <input
                       type="text"
-                      id="url"
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
-                      placeholder="https://www.xiaohongshu.com/user/profile/..."
-                      className="block w-full rounded-xl border-0 py-3.5 px-4 text-gray-900 ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-red-500 sm:text-sm sm:leading-6 transition-all"
-                      required
+                      placeholder="粘贴小红书博主链接，AI来毒舌"
+                      className="w-full p-4 pr-24 rounded-xl border-2 border-pink-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 focus:outline-none transition-all shadow-sm text-gray-700 placeholder-gray-400"
                     />
-                    {url && (
-                      <button
-                        type="button"
-                        onClick={() => setUrl("")}
-                        className="absolute inset-y-0 right-0 flex items-center pr-3"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-gray-400 hover:text-gray-500">
-                          <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 6.28 5.22z" />
-                        </svg>
-                      </button>
-                    )}
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className={`absolute right-2 top-2 px-4 py-2 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-medium rounded-lg shadow hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    >
+                      {loading ? (
+                        <span className="flex items-center">
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          生成中
+                        </span>
+                      ) : '开始吐槽'}
+                    </button>
                   </div>
-                  
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className={`w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                  >
-                    {loading ? 
-                      <span className="flex items-center">
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        分析中...
-                      </span> 
-                      : '生成吐槽' 
-                    }
-                  </button>
+                  <p className="text-xs text-gray-500 mt-2 ml-1">支持小红书博主主页链接，例如: https://www.xiaohongshu.com/user/profile/123456</p>
                 </form>
               </div>
-              
-              {/* 加载状态区域 - 苹果风格进度指示器 */}
-              {loading && (
-                <div className="px-6 pb-6 animate-fade-in">
-                  <div className="flex flex-col items-center space-y-5">
-                    <div className="w-full bg-gray-100 rounded-full h-1 overflow-hidden">
-                      <div 
-                        className="bg-red-500 h-full rounded-full transition-all duration-700 ease-out"
-                        style={{ width: `${loadingProgress}%` }}
-                      />
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <div className="animate-spin mr-3 h-5 w-5 text-red-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">{loadingMessage}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">预计总共需要约60秒...</p>
-                      </div>
-                    </div>
-                    
-                    <div className="w-full p-4 bg-amber-50 rounded-xl border border-amber-100 text-sm">
-                      <p className="flex items-start text-amber-800">
-                        <svg className="w-5 h-5 text-amber-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span>
-                          别着急，DeepSeek正在疯狂思考中，请耐心等待。这段时间适合喝口水、放松一下眼睛。
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 错误提示区域 - 苹果风格警告 */}
+            )}
+            
             {error && (
-              <div className="mb-8 bg-red-50 border-l-4 border-red-500 rounded-lg overflow-hidden animate-fade-in">
-                <div className="p-4 flex items-start">
+              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-6">
+                <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
                   </div>
@@ -909,317 +1046,98 @@ function Home() {
                 </div>
               </div>
             )}
-
-            {/* 结果展示区域 - 苹果风格卡片 */}
-            {result && (
-              <div className="animate-fade-in">
-                <div 
-                  ref={resultCardRef}
-                  className="bg-white rounded-2xl shadow-md overflow-hidden p-6 transition-all hover:shadow-lg border border-pink-50"
-                  data-result-card
-                >
-                  {/* 可点击的博主信息栏 */}
-                  <div className="flex items-start mb-5">
-                    <a 
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block h-12 w-12 rounded-xl overflow-hidden flex-shrink-0 mr-3 border border-pink-100 shadow-sm hover:shadow-md transition-shadow"
-                    >
-                      <NextImage 
-                        src={bloggerInfo?.avatar || '/default-avatar.svg'} 
-                        alt={`${bloggerInfo?.nickname || '未知博主'}的头像`}
-                        className="h-full w-full object-cover"
-                        crossOrigin="anonymous"
-                        width={48}
-                        height={48}
-                        onError={handleImageError}
-                      />
-                    </a>
-                    <div className="flex-1">
-                      <a 
-                        href={url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="block"
-                      >
-                        <h3 className="text-lg font-bold text-gray-900 mb-1 leading-tight hover:text-red-500 transition-colors">
-                          {bloggerInfo?.nickname || '未知博主'}
-                        </h3>
-                      </a>
-                      <p className="text-sm text-pink-500 font-medium">被DeepSeek花式吐槽中...</p>
+            
+            {loading && (
+              <div className="bg-white rounded-2xl shadow-lg p-8 relative overflow-hidden border border-pink-100">
+                <div className="absolute inset-0 bg-gradient-to-br from-rose-50 to-white opacity-70"></div>
+                
+                <div className="relative z-10 flex flex-col items-center">
+                  <div className="w-20 h-20 mb-6 relative">
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-rose-400 to-pink-500 animate-pulse"></div>
+                    <div className="absolute inset-2 rounded-full bg-white flex items-center justify-center">
+                      <svg className="w-10 h-10 text-pink-500 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
                     </div>
                   </div>
                   
-                  {/* 美化后的吐槽内容 */}
-                  <div className="py-2 prose prose-pink max-w-none text-gray-800 leading-relaxed whitespace-pre-wrap">
-                    {result.split('\n').map((line, i) => {
-                      // 增强富文本格式化 - 多种颜色和样式
-                      const formattedLine = line
-                        // 标题和重点强调
-                        .replace(/【(.+?)】/g, '<span class="font-bold text-red-600">【$1】</span>')
-                        // 加粗文字转为橙色强调
-                        .replace(/\*\*(.+?)\*\*/g, '<span class="font-semibold text-amber-600">$1</span>')
-                        // 下划线文字
-                        .replace(/\_\_(.+?)\_\_/g, '<span class="underline decoration-pink-500 decoration-2">$1</span>')
-                        // 斜体转为紫色强调
-                        .replace(/\*(.+?)\*/g, '<span class="italic text-purple-600">$1</span>')
-                        // 引用转为灰底黑字
-                        .replace(/\>(.+)/g, '<span class="bg-gray-100 text-gray-800 px-2 py-1 rounded">$1</span>');
-                        
-                      if (line.trim().startsWith('【') && line.trim().includes('】')) {
-                        return <h4 key={i} className="text-red-600 font-bold text-lg mt-4 mb-2" dangerouslySetInnerHTML={{__html: formattedLine}} />;
-                      } else if (line.trim()) {
-                        return <p key={i} className="mb-3" dangerouslySetInnerHTML={{__html: formattedLine}} />;
-                      }
-                      // 空行
-                      return <div key={i} className="h-2" />;
-                    })}
-                  </div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">深度解析中</h3>
+                  <p className="text-pink-600 font-medium mb-4 min-h-[24px]">{loadingMessage || loadingMessages[Math.floor(Math.random() * loadingMessages.length)]}</p>
                   
-                  {/* 底部信息区域 */}
-                  <div className="mt-6 pt-4 border-t border-gray-100 flex justify-between items-center">
-                    <p className="text-sm text-gray-500 flex time-display items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 mr-1 flex-shrink-0">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                      </svg>
-                      <span suppressHydrationWarning>生成于 {currentTime}</span>
-                    </p>
-                    
-                    {/* 创作者信息 */}
-                    <div className="flex items-center">
-                      <span className="text-xs text-gray-400 mr-2">Powered by</span>
-                      <img src="/花叔.webp" alt="花叔" className="w-5 h-5 rounded-full mr-1" />
-                      <span className="text-xs font-medium text-gray-600">花叔（只工作不上班版</span>
-                    </div>
+                  <div className="w-full max-w-md h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-rose-400 to-pink-500 rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${loadingProgress}%` }}
+                    ></div>
                   </div>
+                  <p className="text-gray-500 text-sm mt-2">{loadingProgress}% 完成</p>
                   
-                  {/* 底部操作区域 */}
-                  <div className="mt-4 flex space-x-2 result-actions">
-                    <button 
-                      onClick={() => {
-                        navigator.clipboard.writeText(result);
-                        // 使用更现代的提示方式
-                        const notification = document.createElement('div');
-                        notification.className = 'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg opacity-0 transition-opacity';
-                        notification.textContent = '吐槽内容已复制到剪贴板';
-                        document.body.appendChild(notification);
-                        setTimeout(() => notification.classList.add('opacity-100'), 10);
-                        setTimeout(() => {
-                          notification.classList.remove('opacity-100');
-                          setTimeout(() => document.body.removeChild(notification), 300);
-                        }, 2000);
-                      }}
-                      className="flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 text-sm font-medium"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 mr-1">
-                        <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
-                        <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
-                      </svg>
-                      复制内容
-                    </button>
-                    <button 
-                      onClick={saveAsImage}
-                      className="flex items-center px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300 text-sm font-medium"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 mr-1">
-                        <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-                      </svg>
-                      保存为图片
-                    </button>
-                    {bloggerInfo?.bloggerId && (
-                      <button
-                        className="text-sm px-3 py-1.5 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 transition-colors flex items-center"
-                        onClick={() => handleOpenHistoryModal(bloggerInfo.bloggerId)}
-                      >
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        历史吐槽
-                      </button>
-                    )}
-                  </div>
+                  <p className="text-gray-600 text-sm mt-6 text-center max-w-md">
+                    请耐心等待，AI正在尽情发挥创意，为您带来最犀利、最有趣的吐槽
+                  </p>
                 </div>
               </div>
             )}
-
-            {/* 最近吐槽展示区域 */}
+            
+            {!loading && result && bloggerInfo && (
+              <ResultCard 
+                bloggerInfo={bloggerInfo}
+                url={url}
+                result={result}
+                resultCardRef={resultCardRef}
+                saveAsImage={saveAsImage}
+                shareRoast={shareRoast}
+                handleOpenHistoryModal={handleOpenHistoryModal}
+                shareId={shareId}
+              />
+            )}
+            
             {recentRoasts.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-8">
-                <div className="p-6">
-                  <h2 className="text-xl font-medium text-gray-900 mb-6">最近的吐槽</h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {recentRoasts.map((roast) => (
-                      <div 
-                        key={roast.id} 
-                        className="border border-pink-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer bg-white"
-                        onClick={() => {
-                          if (roast.shareId) {
-                            router.push(`?share=${roast.shareId}`);
-                          }
-                        }}
-                      >
-                        <div className="bg-gradient-to-r from-pink-50 to-white p-4 flex items-center">
-                          <a 
-                            href={roast.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block h-10 w-10 rounded-full overflow-hidden flex-shrink-0 border border-pink-100 shadow-sm hover:shadow-md transition-shadow"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <NextImage 
-                              src={roast.blogger.avatar} 
-                              alt={`${roast.blogger.nickname}的头像`}
-                              className="h-full w-full object-cover"
-                              crossOrigin="anonymous"
-                              width={40}
-                              height={40}
-                              onError={handleImageError}
-                            />
-                          </a>
-                          <div className="ml-3 flex-1 truncate">
-                            <a 
-                              href={roast.url} 
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <h3 className="text-sm font-medium text-gray-900 hover:text-red-500 transition-colors">{roast.blogger.nickname}</h3>
-                            </a>
-                            <p className="text-xs text-gray-500">
-                              {formatDate(roast.createdAt)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="p-4">
-                          <p className="text-sm text-gray-700 line-clamp-3">
-                            {roast.roast.split('\n')[0]}
-                          </p>
-                        </div>
-                        {/* 添加创作者标记 */}
-                        <div className="px-4 pb-3 pt-1 border-t border-pink-50 flex justify-end items-center">
-                          <span className="text-xs text-gray-400 mr-1">Powered by</span>
-                          <img src="/花叔.webp" alt="花叔" className="w-4 h-4 rounded-full mr-1" />
-                          <span className="text-xs text-gray-500">花叔</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {hasMore && (
-                    <div className="mt-6 text-center">
-                      <button
-                        onClick={handleLoadMore}
-                        disabled={loadingMore}
-                        className={`px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${loadingMore ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        {loadingMore ? '加载中...' : '加载更多'}
-                      </button>
-                    </div>
-                  )}
+              <div className="mt-12 pt-8 border-t border-pink-100">
+                <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                  <svg className="w-6 h-6 mr-2 text-pink-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"></path>
+                  </svg>
+                  最新吐槽
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {recentRoasts.map(roast => (
+                    <RoastCard 
+                      key={roast.id}
+                      roast={roast}
+                      router={router}
+                      formatDate={formatDate}
+                    />
+                  ))}
                 </div>
-              </div>
-            )}
-
-            {/* 使用说明区域 - 苹果风格卡片 */}
-            <div className="mt-8 bg-white rounded-2xl shadow-sm p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">使用说明</h2>
-              <ol className="list-decimal pl-5 space-y-2 text-gray-700">
-                <li>复制小红书博主的主页链接（例如：https://www.xiaohongshu.com/user/profile/...）</li>
-                <li>粘贴到上方输入框</li>
-                <li>点击&quot;生成吐槽&quot;按钮</li>
-                <li>等待AI分析完成，查看幽默吐槽结果</li>
-              </ol>
-              <p className="mt-4 text-sm text-gray-500">注意：本工具仅供娱乐，请文明使用，勿用于攻击他人。</p>
-            </div>
-
-            {/* 历史吐槽模态框 */}
-            {showHistoryModal && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-                <div className="bg-white rounded-xl max-w-xl w-full max-h-[80vh] overflow-hidden flex flex-col">
-                  <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-                    <h3 className="font-bold text-lg">{bloggerInfo?.nickname || '博主'} 的历史吐槽</h3>
-                    <button onClick={() => setShowHistoryModal(false)} className="text-gray-500 hover:text-gray-700">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                      </svg>
+                
+                {hasMore && (
+                  <div className="mt-8 text-center">
+                    <button
+                      onClick={() => loadRecentRoasts(true)}
+                      disabled={loadingMore}
+                      className="px-6 py-2.5 bg-white border border-pink-300 text-pink-600 rounded-lg shadow-sm hover:bg-pink-50 transition-colors font-medium"
+                    >
+                      {loadingMore ? (
+                        <span className="flex items-center">
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-pink-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          加载中...
+                        </span>
+                      ) : '查看更多吐槽'}
                     </button>
                   </div>
-                  
-                  <div className="overflow-y-auto flex-1 p-4">
-                    {loadingHistory ? (
-                      <div className="flex justify-center items-center py-10">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
-                      </div>
-                    ) : historyRoasts.length > 0 ? (
-                      historyRoasts.map((roast, index) => (
-                        <div key={roast.id} className={`mb-4 pb-4 ${index < historyRoasts.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                          <p className="text-xs text-gray-500 mb-2">
-                            {new Date(roast.createdAt).toLocaleString('zh-CN')}
-                          </p>
-                          <div className="prose prose-pink max-w-none text-gray-800 leading-relaxed whitespace-pre-wrap text-sm">
-                            {roast.roast.split('\n').map((line, i) => {
-                              // 使用相同的格式处理代码
-                              const formattedLine = line
-                                .replace(/【(.+?)】/g, '<span class="font-bold text-red-600">【$1】</span>')
-                                .replace(/\*\*(.+?)\*\*/g, '<span class="font-semibold text-amber-600">$1</span>');
-                                
-                              if (line.trim().startsWith('【') && line.trim().includes('】')) {
-                                return <h4 key={i} className="text-red-600 font-bold text-base mt-4 mb-2" dangerouslySetInnerHTML={{__html: formattedLine}} />;
-                              } else if (line.trim()) {
-                                return <p key={i} className="mb-2" dangerouslySetInnerHTML={{__html: formattedLine}} />;
-                              }
-                              return <div key={i} className="h-2" />;
-                            })}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-center text-gray-500 py-8">没有找到历史吐槽记录</p>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
             )}
           </div>
         </main>
 
-        <footer className="bg-white border-t border-gray-200 py-4 mt-8">
-          <div className="max-w-4xl mx-auto px-4">
-            <p className="text-center text-sm text-gray-500" suppressHydrationWarning>
-              © {currentYear} 小红书博主吐槽助手 - 本网站仅供娱乐
-            </p>
-          </div>
-        </footer>
-
-        <style jsx>{`
-          @keyframes fade-in {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-          
-          .animate-fade-in {
-            animation: fade-in 0.5s ease-in-out;
-          }
-          
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-          }
-          
-          .animate-pulse {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-          }
-          
-          .line-clamp-3 {
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-          }
-        `}</style>
+        <Footer />
       </div>
     </ClientOnlyWrapper>
   );

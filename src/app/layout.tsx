@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
+import './globals.css'
+import type { Metadata } from 'next'
 import { Inter } from "next/font/google";
-import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -9,15 +9,19 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "小红书博主吐槽助手",
-  description: "用 AI 智能生成对小红书博主的幽默吐槽",
-};
+  title: '红薯吐槽机 - 小红书博主吐槽助手',
+  description: 'AI驱动的小红书博主内容分析工具，让吐槽更有深度，更有趣',
+  icons: [
+    { rel: 'icon', url: '/favicon.ico' },
+    { rel: 'icon', url: '/favicon.svg', type: 'image/svg+xml' }
+  ]
+}
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="zh">
       <body className={inter.className}>
@@ -32,5 +36,5 @@ export default function RootLayout({
         }} />
       </body>
     </html>
-  );
+  )
 }
