@@ -1,13 +1,13 @@
 {
   "functions": {
-    "api/analyze/route.ts": {
+    "app/api/analyze/route.ts": {
       "maxDuration": 60
     }
   },
   "routes": [
     {
-      "src": "/api/analyze",
-      "dest": "/api/analyze",
+      "src": "app/api/analyze",
+      "dest": "app/api/analyze",
       "methods": ["GET", "POST", "OPTIONS"],
       "headers": {
         "Access-Control-Allow-Origin": "*",
