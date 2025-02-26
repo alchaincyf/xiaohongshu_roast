@@ -6,8 +6,8 @@
   },
   "routes": [
     {
-      "src": "app/api/analyze",
-      "dest": "app/api/analyze",
+      "src": "/api/analyze",
+      "dest": "/api/analyze",
       "methods": ["GET", "POST", "OPTIONS"],
       "headers": {
         "Access-Control-Allow-Origin": "*",

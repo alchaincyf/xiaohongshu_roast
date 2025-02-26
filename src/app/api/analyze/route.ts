@@ -16,8 +16,29 @@ async function fetchRawXiaohongshuContent(url: string): Promise<string> {
     const jinaUrl = `https://r.jina.ai/${cleanUrl}`;
     console.log('爬取内容，使用URL:', jinaUrl);
     
+    // 使用带超时的 fetch
+    async function fetchWithTimeout(url: string, options = {}, timeout = 10000) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
+      
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal
+        });
+        clearTimeout(id);
+        return response;
+      } catch (error) {
+        clearTimeout(id);
+        if (error.name === 'AbortError') {
+          throw new Error('请求超时，请稍后重试');
+        }
+        throw error;
+      }
+    }
+    
     // 发送请求获取小红书内容
-    const response = await fetch(jinaUrl);
+    const response = await fetchWithTimeout(jinaUrl, {}, 15000);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch content: ${response.status}`);
@@ -172,14 +193,32 @@ export async function POST(request: NextRequest) {
   console.log("API请求开始 - ", new Date().toISOString());
   
   try {
-    const startTime = Date.now();
-    const requestData = await request.json();
-    console.log("请求数据解析完成:", JSON.stringify({
-      url: requestData.url,
-      timestamp: new Date().toISOString(),
-      parseTime: Date.now() - startTime
-    }));
+    // 解析请求
+    let requestData;
+    try {
+      requestData = await request.json();
+      if (!requestData || typeof requestData !== 'object') {
+        throw new Error("请求格式无效");
+      }
+      
+      if (!requestData.url || typeof requestData.url !== 'string') {
+        throw new Error("请求中缺少有效的URL参数");
+      }
+      
+      // 简单验证URL格式
+      const urlPattern = /^(https?:\/\/)?(www\.)?(xiaohongshu\.com|xhslink\.com)/i;
+      if (!urlPattern.test(requestData.url)) {
+        throw new Error("请提供有效的小红书链接");
+      }
+    } catch (parseError) {
+      return NextResponse.json({
+        success: false,
+        error: parseError instanceof Error ? parseError.message : "无效的请求格式",
+        errorDetail: parseError instanceof Error ? parseError.message : "请求解析失败"
+      }, { status: 200 });
+    }
     
+    const startTime = Date.now();
     const url = requestData.url;
     
     // 爬取内容

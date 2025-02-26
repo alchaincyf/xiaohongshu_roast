@@ -56,6 +56,14 @@ function SearchParamsComponent({ onParamsLoad }: { onParamsLoad: (share: string 
   return null; // 这个组件不渲染任何内容，只是处理 searchParams
 }
 
+// 创建一个带超时的 Promise
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error(`操作超时 (${timeoutMs}ms)`)), timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]);
+}
+
 function Home() {
   const [url, setUrl] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -280,7 +288,15 @@ function Home() {
       
       console.log(`API响应状态: ${response.status}, 耗时: ${Date.now() - startTime}ms`);
       
-      const responseData = await response.json();
+      // 增加超时保护
+      let responseData;
+      try {
+        responseData = await withTimeout(response.json(), 15000);
+      } catch (jsonError) {
+        console.error("解析API响应失败:", jsonError);
+        throw new Error("服务器返回了无效的数据格式");
+      }
+      
       console.log("API响应数据类型:", typeof responseData);
       console.log("API响应是否成功:", responseData.success);
       
@@ -330,8 +346,14 @@ function Home() {
       console.error("分析博主失败:", error);
       setError((error as Error).message || "发生未知错误，请稍后重试");
     } finally {
+      // 确保无论何种情况都停止加载动画和重置加载状态
       stopLoadingAnimation();
       setLoading(false);
+      // 额外保障：添加一个超时，确保界面更新
+      setTimeout(() => {
+        if (loadingProgress !== 0) setLoadingProgress(0);
+        if (loading) setLoading(false);
+      }, 500);
     }
   };
 
@@ -740,6 +762,14 @@ function Home() {
     loadBloggerHistory(bloggerId);
   };
 
+  // 在页面组件中添加图片错误处理函数
+  const handleImageError = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const img = event.currentTarget;
+    console.log(`图片加载失败: ${img.src}，使用默认头像`);
+    img.src = '/default-avatar.svg';
+    img.onerror = null; // 防止循环触发
+  };
+
   // 如果没有挂载，返回一个简单的加载状态
   if (!mounted) {
     return null; // 返回 null 而不是加载界面，可以避免闪烁
@@ -767,7 +797,7 @@ function Home() {
               rel="noopener noreferrer"
             >
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
-                <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
+                <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.032 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
               </svg>
             </a>
           </div>
@@ -903,9 +933,7 @@ function Home() {
                         crossOrigin="anonymous"
                         width={48}
                         height={48}
-                        onError={(e) => {
-                          e.currentTarget.src = "/default-avatar.svg";
-                        }}
+                        onError={handleImageError}
                       />
                     </a>
                     <div className="flex-1">
@@ -1047,9 +1075,7 @@ function Home() {
                               crossOrigin="anonymous"
                               width={40}
                               height={40}
-                              onError={(e) => {
-                                e.currentTarget.src = "/default-avatar.svg";
-                              }}
+                              onError={handleImageError}
                             />
                           </a>
                           <div className="ml-3 flex-1 truncate">
