@@ -34,16 +34,11 @@ async function fetchRawXiaohongshuContent(url: string): Promise<string> {
 }
 
 /**
- * 调用DeepSeek API进行幽默吐槽
+ * 调用Volces API进行幽默吐槽
  */
 async function generateRoast(blogContent: string): Promise<string> {
-  console.log("调用DeepSeek API开始...");
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  
-  if (!apiKey) {
-    console.error("未找到DeepSeek API密钥!");
-    throw new Error("缺少DeepSeek API密钥");
-  }
+  console.log("调用Volces API开始...");
+  const apiKey = process.env.VOLCES_API_KEY; // 使用新的API密钥
   
   // 清理内容，移除链接和不必要元素
   const cleanedContent = cleanContentForAI(blogContent);
@@ -51,7 +46,7 @@ async function generateRoast(blogContent: string): Promise<string> {
   
   try {
     const requestBody = {
-      model: 'deepseek-reasoner',
+      model: 'deepseek-r1-250120', // 更新为新的模型
       messages: [
         {
           role: 'user',
@@ -59,7 +54,6 @@ async function generateRoast(blogContent: string): Promise<string> {
 
 使用以下 Markdown 格式增强表现力:
 1. 【标题】使用【】括起重要段落标题
-2. **加粗** 用于强调重要观点
 
 以下是博主内容：\n\n${cleanedContent.substring(0, 18000)}`
         }
@@ -68,10 +62,10 @@ async function generateRoast(blogContent: string): Promise<string> {
       max_tokens: 4000
     };
     
-    console.log("开始发送请求到DeepSeek API...");
+    console.log("开始发送请求到Volces API...");
     const requestStartTime = Date.now();
     
-    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    const response = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -80,14 +74,14 @@ async function generateRoast(blogContent: string): Promise<string> {
       body: JSON.stringify(requestBody)
     });
     
-    console.log(`DeepSeek API响应状态: ${response.status}, 耗时: ${Date.now() - requestStartTime}ms`);
+    console.log(`Volces API响应状态: ${response.status}, 耗时: ${Date.now() - requestStartTime}ms`);
     
     // 获取原始响应文本
     const responseText = await response.text();
     
     // 先检查响应是否为空
     if (!responseText || responseText.trim() === '') {
-      console.error("DeepSeek API返回空响应");
+      console.error("Volces API返回空响应");
       throw new Error("API返回空响应");
     }
     
@@ -115,7 +109,7 @@ async function generateRoast(blogContent: string): Promise<string> {
       throw new Error("无法解析API响应");
     }
     
-    // 验证响应数据结构
+    // 验证响应数据结构 - 根据新API的响应格式调整
     if (!responseData.choices || !responseData.choices[0] || !responseData.choices[0].message) {
       console.error("API响应缺少必要字段:", responseData);
       throw new Error("API响应格式不正确");
@@ -124,7 +118,7 @@ async function generateRoast(blogContent: string): Promise<string> {
     return responseData.choices[0].message.content;
     
   } catch (error) {
-    console.error("调用DeepSeek API时发生错误:", error);
+    console.error("调用Volces API时发生错误:", error);
     throw error;
   }
 }
